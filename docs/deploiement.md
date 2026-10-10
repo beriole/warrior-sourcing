@@ -1,128 +1,190 @@
-# Mise en production
+# Mise en production — Vercel et Supabase
 
-Trois applications, et elles ne vont pas au même endroit.
+Trois projets Vercel sur ce dépôt, une base Supabase.
 
-| Application | Où | Pourquoi |
+| Projet Vercel | Root Directory | Ce qu'il sert |
 |---|---|---|
-| `apps/web` (site) | **Vercel** | Next.js, rendu à la demande. C'est le cas d'usage de Vercel. |
-| `apps/admin` (back-office) | **Vercel**, projet séparé | Même technologie, mais un domaine distinct : le back-office n'a rien à faire sur l'adresse publique. |
-| `apps/api` (NestJS) | **Pas Vercel.** Railway, Render, Fly.io, ou un VPS. | Voir ci-dessous. |
+| `warrior-sourcing-web` | `apps/web` | le site public |
+| `warrior-sourcing-admin` | `apps/admin` | le back-office |
+| `warrior-sourcing-api` | `apps/api` | l'API NestJS, en fonction sans serveur |
 
-## Pourquoi l'API ne va pas sur Vercel
+## L'API sur Vercel : ce qui a dû changer
 
-Ce n'est pas une préférence, ce sont trois incompatibilités concrètes :
+Une API NestJS ne tourne pas telle quelle sur Vercel, et l'obstacle n'était pas théorique.
 
-1. **La réconciliation des paiements est un `setInterval`.** Elle relit l'état des
-   paiements encore ouverts toutes les minutes. Une fonction sans serveur s'arrête à la fin
-   de sa requête : l'intervalle ne tourne jamais. Sans webhook public **et** sans
-   réconciliation, un paiement validé sur le téléphone n'est jamais confirmé.
-2. **Prisma et le pool de connexions.** Chaque instance froide ouvre sa propre connexion à
-   PostgreSQL. Sous charge, on épuise les connexions avant d'épuiser le CPU. Il faudrait
-   un pooler (PgBouncer, Prisma Accelerate) rien que pour y survivre.
-3. **Better Auth lit le corps brut des requêtes** et est monté avant l'analyse JSON
-   d'Express. C'est faisable derrière un adaptateur sans serveur, mais chaque mise à jour
-   devient une occasion de le casser silencieusement.
+**La réconciliation des paiements était un `setInterval`.** Elle relit toutes les minutes
+l'état des paiements encore ouverts chez Fapshi. Dans une fonction sans serveur, le
+processus ne vit pas entre deux requêtes : l'intervalle ne se déclenche jamais. Un paiement
+validé sur le téléphone serait resté « en attente » jusqu'à ce que quelqu'un ouvre la page
+— et un webhook perdu n'aurait jamais été rattrapé.
 
-Un hébergeur qui exécute un processus Node en continu règle les trois d'un coup.
+Le déclencheur vient donc désormais de l'extérieur : un **cron Vercel**, déclaré dans
+`apps/api/vercel.json`, appelle chaque minute `GET /v1/payments/reconciliation-planifiee`.
+La route est protégée par `CRON_SECRET` et refuse tout le monde si le secret est absent.
 
-## 1. Base de données
+Effet de bord utile : ce rappel chaque minute garde une instance chaude. Le premier visiteur
+d'une heure creuse ne paie donc pas, en général, le démarrage à froid.
 
-PostgreSQL **16 ou plus**, avec les extensions `pg_trgm` et `unaccent` (la recherche
-tolérante aux fautes en dépend). Neon, Supabase et Railway les fournissent.
+**L'application est construite une fois et retenue.** Monter NestJS — modules, Prisma,
+Better Auth — coûte une à trois secondes. `apps/api/src/vercel.ts` mémorise la promesse de
+construction au niveau du module : une instance chaude répond sans la refaire. En cas
+d'échec, la promesse est remise à zéro, pour qu'une instance ne reste pas coincée sur une
+construction ratée jusqu'à son recyclage.
+
+**La fonction est du JavaScript déjà compilé.** `api/index.js` ne fait que réexporter
+`dist/vercel.js`, produit par `nest build`. L'outil de Vercel n'a ainsi pas à transformer
+lui-même les décorateurs de NestJS ni à produire leurs métadonnées — ce que seul `tsc` fait
+comme NestJS l'attend.
+
+### Ce qui reste moins bon qu'un serveur qui vit
+
+- **Démarrage à froid.** Après une longue inactivité, la première requête attend la
+  construction. Le cron par minute limite le cas, il ne le supprime pas.
+- **Les courriels partent dans la requête.** Un envoi lent ralentit la réponse ; un envoi
+  échoué est journalisé, pas réessayé. Une file de tâches demanderait un processus qui vit.
+- **La limitation de débit compte par instance.** `ThrottlerModule` garde son compteur en
+  mémoire : avec dix instances, la limite réelle est multipliée par dix. Il faut un
+  stockage Redis pour que le plafond annoncé soit le plafond appliqué.
+
+## 1. Supabase
+
+Deux URL, et elles ne sont pas interchangeables.
+
+| Variable | Port | Usage |
+|---|---|---|
+| `DATABASE_URL` | **6543** (`?pgbouncer=true`) | l'application |
+| `DIRECT_URL` | **5432** | les migrations |
+
+Supabase sert l'application par PgBouncer en mode transaction : chaque requête peut tomber
+sur une connexion différente. C'est exactement ce qu'il faut sous le sans-serveur, où
+chaque instance froide ouvre la sienne — et c'est impossible pour une migration, qui pose
+des verrous et crée des types sur une session qu'elle doit garder ouverte.
+
+Prisma 7 a retiré `directUrl` du schéma et de `prisma.config.ts`. Le choix se fait donc à
+la lecture : `prisma.config.ts` prend `DIRECT_URL` quand elle existe, `DATABASE_URL` sinon.
+Ce fichier ne configure que l'outil en ligne de commande ; l'application lit
+`DATABASE_URL` par son propre adaptateur.
+
+### Le piège qui coûte une soirée
+
+La chaîne copiée depuis Supabase contient `[YOUR-PASSWORD]`, **crochets compris**. Collée
+telle quelle, elle produit :
+
+```
+password authentication failed for user "postgres"
+```
+
+Le message parle de l'utilisateur, le problème est le mot de passe. Remplacez
+`[YOUR-PASSWORD]` par le mot de passe de la base — crochets supprimés — dans les deux URL.
+Le mot de passe se retrouve dans Supabase, *Project Settings → Database*.
+
+Si votre mot de passe contient `@`, `/`, `?`, `#`, `[` ou `]`, encodez-les
+(`@` → `%40`, et ainsi de suite) : sans quoi l'URL se découpe au mauvais endroit.
+
+### Migrations
 
 ```bash
 pnpm --filter @ws/api exec prisma migrate deploy
-pnpm --filter @ws/api run db:seed   # facultatif : données de démonstration
 ```
 
-`migrate deploy`, jamais `migrate dev` : `dev` est interactif et peut proposer de
-réinitialiser la base.
+`deploy`, jamais `dev` : `dev` est interactif et peut proposer de réinitialiser la base.
+Les migrations créent `pg_trgm` et `unaccent`, dont dépend la recherche tolérante aux
+fautes. Supabase les autorise.
 
-## 2. API
+Elles tournent aussi à chaque construction de l'API sur Vercel
+(`buildCommand` de `apps/api/vercel.json`) : la base suit le code qu'on déploie.
+
+## 2. Les trois projets Vercel
 
 ```bash
-pnpm install --frozen-lockfile
-pnpm turbo run build --filter=@ws/api
-node apps/api/dist/main.js
+npm install -g vercel
+vercel login
 ```
 
-Variables à renseigner — la liste complète commentée est dans `apps/api/.env.example` :
+Puis, pour chaque application, depuis son dossier :
 
-| Variable | Valeur en production |
-|---|---|
-| `NODE_ENV` | `production` |
-| `DATABASE_URL` | URL PostgreSQL |
-| `APP_URL` | adresse publique du site, utilisée dans les courriels |
-| `API_URL` | adresse publique de l'API |
-| `WEB_ORIGIN`, `ADMIN_ORIGIN` | origines autorisées par CORS, **exactement** |
-| `AUTH_SECRET` | `openssl rand -base64 48` |
-| `AUTH_COOKIE_SAMESITE` | **`none`** si le site et l'API ne sont pas sur le même domaine |
-| `RESEND_API_KEY` ou SMTP | sans quoi les courriels s'écrivent dans un dossier |
-| `FAPSHI_*` | voir `docs/integrations/fapshi.md` |
-| `PAYMENTS_RECONCILE_INTERVAL_MS` | `60000` |
-| `CLOUDINARY_URL` | dépôt des vidéos et des documents |
+```bash
+cd apps/api   && vercel link && vercel --prod
+cd apps/web   && vercel link && vercel --prod
+cd apps/admin && vercel link && vercel --prod
+```
+
+Chaque `vercel.json` porte déjà sa commande de construction, qui remonte à la racine et
+passe par Turborepo : sans cela, `@ws/ui` et `@ws/contracts` ne sont pas compilés et la
+construction échoue sur des imports introuvables.
+
+### Variables d'environnement
+
+```bash
+node scripts/vercel-env.mjs api --dry   # voir ce qui partirait
+node scripts/vercel-env.mjs api         # pousser
+```
+
+Le script lit `apps/api/.env`, n'affiche jamais une valeur, et refuse de pousser une
+variable qui contient encore un texte de modèle. Il travaille par liste blanche : votre
+`.env` local contient des réglages de développement qui n'ont rien à faire en production.
+
+`node scripts/preparer-production.mjs` pose au préalable ce qui peut l'être sans rien
+demander : `AUTH_SECRET`, `CRON_SECRET`, `AUTH_COOKIE_SAMESITE` et `OPENROUTER_MODEL`. Il
+ne remplace jamais une valeur déjà choisie et sauvegarde le fichier avant d'écrire.
 
 ### Le réglage qui casse l'authentification si on l'oublie
 
-`AUTH_COOKIE_SAMESITE`. En local, le site et l'API partagent `localhost` : `lax` suffit.
-En production, dès que le site est sur un domaine et l'API sur un autre, le navigateur ne
-joint le cookie de session qu'avec `SameSite=None; Secure`.
+`AUTH_COOKIE_SAMESITE=none`.
 
-Avec `lax`, **chaque requête part sans session, et rien ne le signale** : pas d'erreur, pas
-de message, seulement un utilisateur qui semble déconnecté en permanence. C'est le genre de
-panne qui coûte une journée. `none` impose HTTPS, exigence du navigateur et non de ce code.
+Le site et l'API seront sur deux domaines distincts — et même deux sous-domaines de
+`vercel.app` comptent comme deux sites, parce que `vercel.app` figure sur la liste des
+suffixes publics. Le navigateur ne joint alors le cookie de session qu'avec
+`SameSite=None; Secure`.
 
-Le plus simple reste de servir l'API sur un sous-domaine du site — `api.votre-domaine.cm`
-avec le site sur `votre-domaine.cm` — et de garder `lax` : deux sous-domaines du même
-domaine enregistrable ne sont pas « cross-site ».
+Avec `lax`, **chaque requête part sans session et rien ne le signale** : pas d'erreur, pas
+de message, seulement un utilisateur qui semble déconnecté en permanence.
 
-## 3. Site et back-office sur Vercel
+Servir l'API sur un sous-domaine de votre propre domaine — `api.votre-domaine.cm` avec le
+site sur `votre-domaine.cm` — permet de revenir à `lax`, qui est plus sûr.
 
-Deux projets Vercel distincts, tous deux sur ce dépôt :
+### Après le premier déploiement
 
-| Réglage | `apps/web` | `apps/admin` |
-|---|---|---|
-| Root Directory | `apps/web` | `apps/admin` |
-| Framework | Next.js (détecté) | Next.js (détecté) |
-| Build / Install | lus dans `vercel.json` | lus dans `vercel.json` |
+Vercel attribue les adresses au premier déploiement. Il faut ensuite les réinjecter, puis
+redéployer :
 
-La commande de construction remonte à la racine et passe par Turborepo, pour que `@ws/ui`
-et `@ws/contracts` soient compilés avant l'application. Sans cela, la construction échoue
-sur des imports introuvables.
+| Variable | Valeur |
+|---|---|
+| `API_URL`, sur le projet API | l'adresse du projet API |
+| `WEB_ORIGIN`, `ADMIN_ORIGIN`, `APP_URL`, sur le projet API | les adresses du site et du back-office |
+| `NEXT_PUBLIC_API_URL`, sur le site et le back-office | l'adresse du projet API |
 
-Variable à définir sur les deux projets :
+`WEB_ORIGIN` et `ADMIN_ORIGIN` sont la liste blanche CORS : une adresse inexacte et le
+navigateur bloque toutes les requêtes, sans que le serveur voie quoi que ce soit.
 
+## 3. Fapshi
+
+1. Tableau de bord Fapshi → URL de webhook :
+   `https://<projet-api>.vercel.app/v1/payments/webhook`
+2. Le secret du tableau de bord doit être **identique** à `FAPSHI_WEBHOOK_SECRET`. Vide ou
+   différent des deux côtés, chaque notification repart en 401.
+3. `FAPSHI_ENV` décide des clés employées : `sandbox` prend les clés `_SANDBOX`, `live`
+   prend les autres. En `live`, chaque essai pousse une demande sur un vrai téléphone.
+
+Même sans webhook, un paiement finit par être confirmé : la consultation d'état et le cron
+de réconciliation s'en chargent. Le webhook accélère, il n'est pas le seul chemin.
+
+## 4. Premier compte administrateur
+
+Les comptes naissent `CLIENT`. Depuis l'éditeur SQL de Supabase :
+
+```sql
+update "user" set role = 'SUPER_ADMIN' where email = 'votre@adresse';
 ```
-NEXT_PUBLIC_API_URL=https://api.votre-domaine.cm
-```
 
-`NEXT_PUBLIC_` est un préfixe qui **inscrit la valeur dans le JavaScript envoyé au
-navigateur**. N'y mettre jamais autre chose qu'une adresse publique.
+Puis, depuis le back-office, saisissez vos transitaires et leurs grilles tarifaires : sans
+eux, le calculateur n'a aucun tarif et l'assistant d'adresse n'a aucune adresse à proposer.
 
-## 4. Après le premier déploiement
+## Ce qui n'est toujours pas fait
 
-Dans l'ordre, parce que chacun dépend du précédent :
-
-1. **Webhook Fapshi.** Tableau de bord Fapshi → URL `https://api.votre-domaine.cm/v1/payments/webhook`,
-   et le secret **identique** à `FAPSHI_WEBHOOK_SECRET`. Vide des deux côtés, chaque
-   notification repart en 401.
-2. **Un compte administrateur.** Les comptes naissent `CLIENT`. Le promouvoir en base :
-   `UPDATE "user" SET role = 'SUPER_ADMIN' WHERE email = '...';`
-3. **Les transitaires et leurs grilles**, depuis le back-office. Sans eux, le calculateur
-   n'a aucun tarif et l'assistant d'adresse n'a aucune adresse à faire copier.
-4. **Vérifier un paiement de bout en bout** avec un petit montant réel : le bac à sable
-   confirme tout seul, la production attend une validation sur un vrai téléphone.
-
-## Ce qui n'est pas prêt
-
-- **Pas de file de tâches.** Les courriels partent dans la requête. Un envoi lent ralentit
-  la réponse ; un envoi échoué est journalisé, pas réessayé. `REDIS_URL` et BullMQ sont
-  prévus, pas branchés.
-- **Limitation de débit en mémoire.** `ThrottlerModule` compte par instance. Au-delà d'une
-  instance, la limite réelle est multipliée par leur nombre : il faut le stockage Redis.
-- **Téléversement non branché au back-office.** Les images de fournisseur et les documents
+- **Téléversement de fichiers depuis le back-office.** Photos de fournisseur et documents
   de leçon se saisissent par URL. L'API de signature Cloudinary existe
-  (`apps/api/src/platform/uploads/`) ; le choisir-un-fichier dans le back-office reste à
-  faire.
-- **Traduction partielle.** La page d'accueil est bilingue ; le reste des écrans est en
+  (`apps/api/src/platform/uploads/`), le choisir-un-fichier reste à brancher.
+- **File de tâches** et **limitation de débit partagée** : voir plus haut.
+- **Traduction partielle.** La page d'accueil est bilingue, le reste des écrans est en
   français. Choisir l'anglais donne aujourd'hui une interface mélangée.

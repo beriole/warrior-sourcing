@@ -21,3 +21,4 @@ export * from './api-messaging.js';
 export * from './promotions.js';
 export * from './subscriptions.js';
 export * from './shipping-address.js';
+export * from './assistant.js';

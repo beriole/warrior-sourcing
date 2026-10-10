@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { AiModule } from './ai/ai.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { CalculatorController } from './calculator/calculator.controller.js';
 import { CargoModule } from './cargo/cargo.module.js';
@@ -45,6 +46,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     BillingModule,
     ServicesModule,
     AdminModule,
+    AiModule,
   ],
   controllers: [HealthController, CalculatorController, OnboardingController, DashboardController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
