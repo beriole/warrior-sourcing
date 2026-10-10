@@ -1,0 +1,431 @@
+// Academy : formations, leçons, quiz, progression et bibliothèque (lot ACA, §26).
+// Montants : entiers en unités mineures (FCFA = unité). Jamais de Float pour de l'argent.
+// Les valeurs d'énumération doivent rester identiques à celles de @ws/contracts (api-academy.ts).
+//
+// `userId` n'a pas de clé étrangère : le modèle User appartient au lot AUTH, et un lot
+// ne modifie pas le schéma d'un autre (même convention que cargo.prisma et suppliers.prisma).
+
+// ───────────────────────── Énumérations ─────────────────────────
+
+/// Identique à COURSE_LEVELS dans @ws/contracts.
+enum CourseLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+/// Identique à COURSE_THEMES dans @ws/contracts.
+enum CourseTheme {
+  BASICS
+  SOURCING
+  SUPPLIERS
+  NEGOTIATION
+  PAYMENT
+  LOGISTICS
+  CUSTOMS
+  SELLING
+}
+
+/// Condition d'accès (§26, §43). Identique à COURSE_ACCESSES dans @ws/contracts.
+enum CourseAccess {
+  FREE
+  PAID
+  SUBSCRIPTION
+}
+
+/// Ce qui a ouvert le droit d'accès. Identique à ENROLLMENT_SOURCES dans @ws/contracts.
+enum EnrollmentSource {
+  FREE_COURSE
+  PURCHASE
+  SUBSCRIPTION
+  GRANTED
+}
+
+/// Nature d'une ressource de la bibliothèque. Identique à RESOURCE_TYPES dans @ws/contracts.
+enum ResourceType {
+  PDF
+  GUIDE
+  CHECKLIST
+  TEMPLATE
+  FACT_SHEET
+}
+
+/// Avancement d'une leçon. Identique à LESSON_STATUSES dans @ws/contracts.
+enum LessonStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+// ───────────────────────── Formateurs (ACA-01) ─────────────────────────
+
+/// Personne qui anime une formation. `headline` dit ce qu'elle fait réellement :
+/// aucun titre inventé, aucune certification non vérifiée (§54).
+model Instructor {
+  id        String   @id @default(cuid())
+  name      String
+  headline  String
+  bio       String?
+  photoUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  courses Course[]
+
+  @@map("instructor")
+}
+
+// ───────────────────────── Formations (ACA-01) ─────────────────────────
+
+model Course {
+  id      String @id @default(cuid())
+  /// Identifiant lisible utilisé dans les URL.
+  slug    String @unique
+  title   String
+  summary String
+  /// Présentation longue, affichée sur la fiche.
+  description String
+
+  level  CourseLevel
+  theme  CourseTheme
+  access CourseAccess @default(FREE)
+  /// Prix en FCFA entiers. Vaut 0 pour une formation gratuite ou incluse dans l'abonnement.
+  priceXaf Int @default(0)
+
+  /// Ce que la formation permet de faire. Aucune promesse de gain (§54).
+  outcomes      String[]
+  prerequisites String[]
+
+  coverUrl String?
+  /// Extrait de présentation, lisible sans compte quand il existe.
+  trailerUrl String?
+
+  instructorId String
+  instructor   Instructor @relation(fields: [instructorId], references: [id])
+
+  /// Non publiée tant que la date est absente : jamais servie au catalogue.
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  chapters    Chapter[]
+  lessons     Lesson[]
+  resources   LibraryResource[]
+  reviews     CourseReview[]
+  enrollments Enrollment[]
+  purchases   CoursePurchase[]
+  progress    LessonProgress[]
+
+  @@index([publishedAt(sort: Desc)])
+  @@index([level, theme])
+  @@map("course")
+}
+
+model Chapter {
+  id       String  @id @default(cuid())
+  courseId String
+  course   Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title    String
+  summary  String?
+  position Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lessons Lesson[]
+  quiz    Quiz?
+
+  @@unique([courseId, position])
+  @@index([courseId, position])
+  @@map("chapter")
+}
+
+/// Leçon d'un chapitre. `courseId` est repris ici pour que l'identifiant d'URL soit
+/// unique dans sa formation et pour interroger la progression sans joindre le chapitre.
+model Lesson {
+  id        String  @id @default(cuid())
+  courseId  String
+  course    Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  chapterId String
+  chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  slug     String
+  title    String
+  summary  String?
+  position Int     @default(0)
+  /// Durée annoncée de la leçon, en minutes entières.
+  durationMinutes Int @default(0)
+
+  /// Identifiant Cloudinary de la vidéo (DEC-04). L'URL de lecture est signée à la demande
+  /// et n'est jamais stockée : elle dépend du droit d'accès vérifié côté serveur.
+  videoPublicId String?
+  /// Extension du fichier vidéo déposé, nécessaire pour signer l'URL de lecture.
+  videoFormat   String?
+
+  /// Leçon offerte en extrait : lisible sans achat ni compte.
+  preview   Boolean   @default(false)
+  /// Non publiée tant que la date est absente : ni comptée, ni servie.
+  publishedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  documents LessonDocument[]
+  progress  LessonProgress[]
+  notes     LessonNote[]
+
+  @@unique([courseId, slug])
+  @@index([chapterId, position])
+  @@map("lesson")
+}
+
+/// Document téléchargeable attaché à une leçon (ACA-04). Servi seulement aux comptes
+/// qui ont le droit d'ouvrir la leçon.
+model LessonDocument {
+  id       String @id @default(cuid())
+  lessonId String
+  lesson   Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  title      String
+  /// Extension telle qu'elle a été déposée (pdf, docx…).
+  fileFormat String
+  sizeBytes  Int?
+  url        String
+  position   Int    @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([lessonId, position])
+  @@map("lesson_document")
+}
+
+// ───────────────────────── Bibliothèque (ACA-05) ─────────────────────────
+
+/// Ressource de la bibliothèque : PDF, guide, checklist, modèle, fiche pratique.
+/// Le fichier vit chez Cloudinary (`filePublicId`) ou derrière une URL déjà publique
+/// (`fileUrl`). Les deux peuvent manquer : la ressource est alors annoncée comme
+/// pas encore déposée, jamais comme téléchargeable (§54).
+model LibraryResource {
+  id          String @id @default(cuid())
+  slug        String @unique
+  title       String
+  description String
+
+  type  ResourceType
+  theme CourseTheme
+
+  /// Extension du fichier, telle qu'elle a été envoyée.
+  fileFormat   String
+  sizeBytes    Int?
+  pageCount    Int?
+  filePublicId String?
+  fileUrl      String?
+
+  /// Formation dont la ressource dépend, quand elle en dépend d'une.
+  courseId String?
+  course   Course? @relation(fields: [courseId], references: [id], onDelete: SetNull)
+
+  /// Faux quand la ressource n'est ouverte qu'aux inscrits de sa formation.
+  free Boolean @default(true)
+
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([type])
+  @@index([theme])
+  @@index([publishedAt(sort: Desc)])
+  @@map("library_resource")
+}
+
+// ───────────────────────── Quiz (ACA-04) ─────────────────────────
+
+/// Quiz de fin de chapitre. Un chapitre en porte au plus un.
+model Quiz {
+  id        String  @id @default(cuid())
+  chapterId String  @unique
+  chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  title String
+  /// Pourcentage de bonnes réponses exigé pour réussir.
+  passScorePercent Int @default(70)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  questions QuizQuestion[]
+  attempts  QuizAttempt[]
+
+  @@map("quiz")
+}
+
+model QuizQuestion {
+  id     String @id @default(cuid())
+  quizId String
+  quiz   Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  prompt   String
+  position Int    @default(0)
+  /// Pourquoi la bonne réponse est la bonne. Affichée seulement après correction.
+  explanation String?
+
+  choices QuizChoice[]
+
+  @@unique([quizId, position])
+  @@index([quizId, position])
+  @@map("quiz_question")
+}
+
+model QuizChoice {
+  id         String       @id @default(cuid())
+  questionId String
+  question   QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  label String
+  /// Jamais envoyé au client avant la correction.
+  correct  Boolean @default(false)
+  position Int     @default(0)
+
+  @@index([questionId, position])
+  @@map("quiz_choice")
+}
+
+/// Tentative d'un compte sur un quiz. L'historique est conservé : la fiche n'affiche
+/// que la dernière, mais rien n'est effacé.
+model QuizAttempt {
+  id     String @id @default(cuid())
+  quizId String
+  quiz   Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  userId String
+
+  scorePercent  Int
+  correctCount  Int
+  questionCount Int
+  passed        Boolean
+  takenAt       DateTime @default(now())
+
+  @@index([quizId, userId, takenAt(sort: Desc)])
+  @@map("quiz_attempt")
+}
+
+// ───────────────────────── Inscriptions et progression (ACA-02, ACA-04) ─────────────────────────
+
+/// Droit d'accès d'un compte à une formation. Sa seule existence ouvre le contenu :
+/// le serveur ne déduit jamais un droit de l'interface (§54).
+model Enrollment {
+  id       String @id @default(cuid())
+  userId   String
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  source EnrollmentSource
+
+  enrolledAt DateTime @default(now())
+
+  @@unique([userId, courseId])
+  @@index([userId, enrolledAt(sort: Desc)])
+  @@map("enrollment")
+}
+
+/// État d'un achat de formation à l'unité (SUB-02).
+enum CoursePurchaseStatus {
+  PENDING_PAYMENT
+  PAID
+  CANCELLED
+}
+
+/// Achat d'une formation à l'unité (SUB-02).
+///
+/// Distinct de `Enrollment` à dessein : l'inscription dit « cette personne a le droit
+/// d'ouvrir cette formation », l'achat dit « cette personne a payé tel montant tel jour ».
+/// Un accès offert par l'équipe n'a pas d'achat, et un achat remboursé ne doit pas effacer
+/// la trace de ce qui a été encaissé. Confondre les deux rendrait la comptabilité illisible.
+model CoursePurchase {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  status CoursePurchaseStatus @default(PENDING_PAYMENT)
+  /// Montant réellement payé, promotion déduite. Figé à l'achat.
+  paidXaf Int
+
+  /// Référence du paiement du lot PAY. Pas de clé étrangère : le lot PAY possède son schéma.
+  paymentReference String?
+
+  /// Vrai quand le compte a été créé par cet achat : il attend donc ses identifiants de
+  /// connexion, qui ne sont engendrés qu'à la confirmation du paiement.
+  provisionCredentials Boolean @default(false)
+  /// Horodatage de l'envoi des identifiants : sa présence rend l'envoi idempotent.
+  credentialsSentAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([courseId, status])
+  @@map("course_purchase")
+}
+
+/// Avancement d'un compte sur une leçon. `watchedSeconds` sert la reprise de lecture.
+model LessonProgress {
+  id       String @id @default(cuid())
+  userId   String
+  lessonId String
+  lesson   Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  status LessonStatus @default(NOT_STARTED)
+  /// Position atteinte dans la vidéo, en secondes entières.
+  watchedSeconds Int @default(0)
+  completedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, lessonId])
+  @@index([userId, courseId])
+  @@index([userId, updatedAt(sort: Desc)])
+  @@map("lesson_progress")
+}
+
+/// Notes personnelles d'un compte sur une leçon (ACA-04). Privées : jamais servies
+/// à un autre compte, jamais affichées sur la fiche publique.
+model LessonNote {
+  id       String @id @default(cuid())
+  userId   String
+  lessonId String
+  lesson   Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  notes String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, lessonId])
+  @@map("lesson_note")
+}
+
+// ───────────────────────── Avis (ACA-03) ─────────────────────────
+
+/// Avis déposé par un compte sur une formation. Un compte, un avis.
+/// Aucun avis n'est généré : sans avis, la fiche affiche « aucun avis » (§54).
+model CourseReview {
+  id       String @id @default(cuid())
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  userId   String
+  /// Nom affiché au moment du dépôt : l'avis reste lisible si le compte change de nom.
+  authorName String
+
+  rating  Int
+  comment String?
+
+  publishedAt DateTime @default(now())
+
+  @@unique([courseId, userId])
+  @@index([courseId, publishedAt(sort: Desc)])
+  @@map("course_review")
+}

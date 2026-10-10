@@ -1,0 +1,326 @@
+// Schéma de fondation. Les valeurs d'énumération doivent rester identiques à celles de @ws/contracts.
+// Montants : entiers en unités mineures (FCFA = unité). Jamais de Float pour de l'argent.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────── Énumérations ─────────────────────────
+
+enum UserRole {
+  CLIENT
+  PREMIUM_MEMBER
+  TRAINER
+  SOURCING_AGENT
+  CHINA_AGENT
+  LOGISTICS_AGENT
+  SUPPORT
+  CONTENT_MANAGER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum Currency {
+  XAF
+  CNY
+  USD
+  EUR
+}
+
+enum ImporterLevel {
+  BEGINNER
+  FEW_ORDERS
+  REGULAR
+  TRADER
+  COMPANY
+}
+
+enum ImporterGoal {
+  LEARN
+  FIND_PRODUCTS
+  FIND_SUPPLIERS
+  ORDER
+  REDUCE_COSTS
+  GROW_BUSINESS
+}
+
+enum BudgetRange {
+  UNDER_100K
+  FROM_100K_TO_300K
+  FROM_300K_TO_1M
+  FROM_1M_TO_5M
+  OVER_5M
+}
+
+enum InterestCategory {
+  PHONES
+  ACCESSORIES
+  FASHION
+  BEAUTY
+  HOME
+  ELECTRONICS
+  AUTO_MOTO
+  MACHINES
+  PACKAGING
+  OTHER
+}
+
+enum SupplierType {
+  MANUFACTURER
+  DISTRIBUTOR
+  TRADING_COMPANY
+}
+
+enum SupplierVerificationLevel {
+  IDENTITY_VERIFIED
+  SUPPLIER_TESTED
+  QUALITY_TESTED
+  PARTNER
+}
+
+enum ShippingMode {
+  AIR
+  SEA
+  EXPRESS
+}
+
+enum ShipmentStage {
+  ORDER_PAID
+  SUPPLIER_CONFIRMED
+  IN_PRODUCTION
+  SHIPPED_TO_WAREHOUSE
+  AT_CHINA_WAREHOUSE
+  INSPECTION
+  CONSOLIDATION
+  IN_TRANSIT
+  ARRIVED_CAMEROON
+  CUSTOMS
+  AT_LOCAL_WAREHOUSE
+  READY_FOR_PICKUP
+  DELIVERED
+}
+
+enum PaymentMethod {
+  MTN_MOMO
+  ORANGE_MONEY
+  CARD
+}
+
+enum PaymentStatus {
+  INITIATED
+  PENDING
+  SUCCEEDED
+  FAILED
+  EXPIRED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+// ───────────────────────── Identité (tables Better Auth) ─────────────────────────
+
+model User {
+  id                  String    @id
+  name                String
+  email               String    @unique
+  emailVerified       Boolean   @default(false)
+  image               String?
+  phoneNumber         String?   @unique
+  phoneNumberVerified Boolean   @default(false)
+  role                UserRole  @default(CLIENT)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  sessions        Session[]
+  accounts        Account[]
+  importerProfile ImporterProfile?
+  orders          Order[]
+  payments        Payment[]
+  favorites       Favorite[]
+  businessProjects BusinessProject[]
+  conversations   Conversation[]
+  subscriptions   Subscription[]
+  coursePurchases CoursePurchase[]
+  redemptions     PromotionRedemption[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ───────────────────────── Onboarding (§10) ─────────────────────────
+
+model ImporterProfile {
+  id          String             @id @default(cuid())
+  userId      String             @unique
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  level       ImporterLevel
+  goals       ImporterGoal[]
+  budgetRange BudgetRange
+  interests   InterestCategory[]
+  city        String?
+
+  /// Code client, unique et stable, à joindre à chaque colis envoyé à l'entrepôt.
+  ///
+  /// C'est lui qui rattache un carton à son destinataire : sans lui, le colis arrive
+  /// anonyme et personne ne sait à qui il appartient. Engendré à la première demande
+  /// d'adresse, jamais réattribué — un code recyclé rattacherait la marchandise de
+  /// quelqu'un au compte d'un autre.
+  clientCode  String?            @unique
+
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@map("importer_profile")
+}
+
+// ───────────────────────── Devises (§20 : conversion datée) ─────────────────────────
+
+model ExchangeRate {
+  id         String   @id @default(cuid())
+  base       Currency
+  quote      Currency
+  rate       Decimal  @db.Decimal(18, 8)
+  observedAt DateTime
+  source     String
+  createdAt  DateTime @default(now())
+
+  @@index([base, quote, observedAt(sort: Desc)])
+  @@map("exchange_rate")
+}
+
+// ───────────────────────── Fournisseurs (§15, §16) ─────────────────────────
+
+model Supplier {
+  id              String       @id @default(cuid())
+  name            String
+  type            SupplierType
+  city            String
+  moq             Int?
+  oem             Boolean      @default(false)
+  sampleAvailable Boolean      @default(false)
+  leadTimeDays    Int?
+  publicSummary   String?
+  /// Visuel principal : logo ou photo d'atelier. Une seule image, celle qui représente
+  /// le fournisseur dans une liste. Les autres vivent dans `SupplierPhoto`, qui porte
+  /// une date et une source — ce que cette image-ci n'a pas, et ne prétend donc pas avoir.
+  logoUrl         String?
+  /// Coordonnées protégées (§17) : jamais renvoyées sans droit d'accès vérifié côté serveur.
+  contactDetails  Json?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  verifications SupplierVerification[]
+  shopLinks     SupplierShopLink[]
+
+  @@index([city])
+  @@map("supplier")
+}
+
+/// Historique des preuves (§16) : chaque niveau obtenu garde sa preuve et sa date.
+model SupplierVerification {
+  id           String                    @id @default(cuid())
+  supplierId   String
+  supplier     Supplier                  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  level        SupplierVerificationLevel
+  evidenceUrl  String?
+  notes        String?
+  verifiedAt   DateTime
+  verifiedById String?
+  createdAt    DateTime                  @default(now())
+
+  @@index([supplierId, level])
+  @@map("supplier_verification")
+}
+
+// ───────────────────────── Audit (§39, §41) ─────────────────────────
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([actorId, createdAt])
+  @@map("audit_log")
+}
+
+// ───────────────────────── Notifications email (§33) ─────────────────────────
+
+enum EmailStatus {
+  SENT
+  FAILED
+}
+
+/// Journal des emails envoyés : audit, support client et base d'une future relance.
+model EmailLog {
+  id         String      @id @default(cuid())
+  recipient  String
+  template   String
+  subject    String
+  status     EmailStatus
+  /// Identifiant renvoyé par le fournisseur d'envoi, pour retrouver un message.
+  providerId String?
+  transport  String
+  error      String?
+  userId     String?
+  createdAt  DateTime    @default(now())
+
+  @@index([recipient, createdAt])
+  @@index([template, createdAt])
+  @@map("email_log")
+}

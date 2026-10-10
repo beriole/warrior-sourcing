@@ -1,0 +1,36 @@
+// Fondations transverses (lot PLAT) : favoris et recherche globale (§36).
+//
+// La recherche globale n'a pas de table à elle : elle interroge les tables des autres
+// lots en lecture seule, par une requête SQL qui mesure la ressemblance. Seuls les
+// favoris ont besoin d'être stockés.
+
+/// Ce qu'un compte a mis de côté. Identique à FAVORITE_TARGET_TYPES dans @ws/contracts.
+enum FavoriteTargetType {
+  PRODUCT
+  SUPPLIER
+  COURSE
+  SERVICE
+}
+
+/// Favori d'un compte.
+///
+/// `targetId` n'a pas de clé étrangère : il désigne quatre tables différentes, qui
+/// appartiennent à quatre lots. L'existence de la cible est vérifiée à l'ajout, et une
+/// cible disparue est simplement ignorée à la lecture — un favori orphelin ne doit pas
+/// faire échouer la page des favoris.
+///
+/// La contrainte d'unicité rend l'ajout idempotent : rappeler la route ne crée pas de
+/// doublon, ce qui compte sur un bouton qu'on tapote deux fois sur mobile.
+model Favorite {
+  id         String             @id @default(cuid())
+  userId     String
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetType FavoriteTargetType
+  targetId   String
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, targetType, targetId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("favorite")
+}

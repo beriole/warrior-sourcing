@@ -1,0 +1,181 @@
+// Prestations et commandes de prestation (lot SRV, §29).
+// Montants : entiers en unités mineures (FCFA = unité). Jamais de Float pour de l'argent.
+// Les valeurs d'énumération doivent rester identiques à celles de @ws/contracts (api-services.ts).
+//
+// `userId` n'a pas de clé étrangère : le modèle User appartient au lot AUTH, et un lot
+// ne modifie pas le schéma d'un autre (même convention que academy.prisma et cargo.prisma).
+// Le paiement n'est pas dupliqué ici : la commande garde la référence du paiement du lot PAY
+// (`paymentReference`), le détail vit dans la table `payment`.
+
+// ───────────────────────── Énumérations ─────────────────────────
+
+/// Les dix prestations du catalogue (§29). Identique à SERVICE_CATEGORIES dans @ws/contracts.
+enum ServiceCategory {
+  SUPPLIER_SEARCH
+  VERIFICATION
+  INSPECTION
+  NEGOTIATION
+  ASSISTED_PURCHASE
+  SUPPLIER_PAYMENT
+  CONSOLIDATION
+  SHIPPING
+  BRANDING
+  COACHING
+}
+
+/// Nature du tarif affiché. Identique à SERVICE_PRICING_MODES dans @ws/contracts.
+/// QUOTE : aucun tarif public, `priceXaf` reste nul et la prestation n'est pas payable en ligne.
+enum ServicePricingMode {
+  FIXED
+  FROM
+  QUOTE
+}
+
+/// Cycle de vie d'une commande de prestation. Identique à SERVICE_ORDER_STATUSES
+/// dans @ws/contracts, et les transitions permises y sont décrites une seule fois.
+enum ServiceOrderStatus {
+  PENDING_PAYMENT
+  PAID
+  IN_PROGRESS
+  AWAITING_CLIENT
+  DELIVERED
+  CANCELLED
+}
+
+// ───────────────────────── Catalogue (SRV-01) ─────────────────────────
+
+/// Une prestation du catalogue. Chaque ligne porte son prix, son délai, ses livrables
+/// et ses conditions : sans livrable ni condition, la prestation n'est pas publiable.
+///
+/// Règle §54 : `priceXaf` et `leadTimeDays` peuvent être nuls, et c'est annoncé comme tel
+/// (« sur devis », « délai non communiqué »). Jamais remplacés par une estimation.
+model ServiceOffering {
+  id      String @id @default(cuid())
+  /// Identifiant lisible utilisé dans les URL.
+  slug    String @unique
+  name    String
+  summary String
+  /// Présentation longue, affichée sur la fiche.
+  description String
+
+  category    ServiceCategory
+  pricingMode ServicePricingMode @default(FIXED)
+  /// Tarif public en FCFA entiers. Nul pour une prestation sur devis.
+  priceXaf    Int?
+
+  /// Délai annoncé, en jours ouvrés. Nul quand il n'a pas été communiqué.
+  leadTimeDays Int?
+  /// Précision libre sur le délai, quand l'équipe en a écrit une.
+  leadTimeNote String?
+
+  /// Ce que le client reçoit à la fin.
+  deliverables String[] @default([])
+  /// Ce que la prestation couvre et ce qu'elle ne couvre pas.
+  conditions   String[] @default([])
+  /// Ce que le client doit fournir pour que la prestation démarre.
+  requirements String[] @default([])
+
+  /// Rang d'affichage au catalogue : le parcours d'une importation, pas l'ordre alphabétique.
+  position Int @default(0)
+
+  /// Non publiée tant que la date est absente : jamais servie au catalogue.
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  orders ServiceOrder[]
+
+  @@index([publishedAt, position])
+  @@index([category])
+  @@map("service_offering")
+}
+
+// ───────────────────────── Commande d'une prestation (SRV-02) ─────────────────────────
+
+/// Commande d'une prestation par un client. Le montant, le délai et les livrables annoncés
+/// sont figés au moment de la commande : la fiche du catalogue peut changer ensuite, pas
+/// l'engagement pris. L'état n'avance que par les transitions de @ws/contracts.
+model ServiceOrder {
+  id        String @id @default(cuid())
+  /// Référence lisible communiquée au client (SRV-XXXXXXXX).
+  reference String @unique
+  userId    String
+
+  serviceId String
+  service   ServiceOffering @relation(fields: [serviceId], references: [id])
+
+  status ServiceOrderStatus @default(PENDING_PAYMENT)
+
+  /// Montant figé à la commande, en FCFA entiers.
+  amountXaf Int
+  /// Délai et livrables annoncés au moment de la commande.
+  leadTimeDays        Int?
+  orderedDeliverables String[] @default([])
+
+  /// Le besoin, écrit par le client. Sans lui, la prestation ne peut pas démarrer.
+  brief        String
+  city         String
+  /// Numéro de contact au format national à 9 chiffres.
+  contactPhone String
+  quantity     Int?
+  /// Budget visé par le client, en FCFA entiers.
+  budgetXaf    Int?
+  links        String[] @default([])
+
+  /// Référence du paiement du lot PAY (table `payment`). Pas de clé étrangère : le lot PAY
+  /// possède son schéma, et une commande de prestation peut exister avant tout paiement.
+  paymentReference String?
+
+  paidAt      DateTime?
+  deliveredAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  events       ServiceOrderEvent[]
+  deliverables ServiceDeliverable[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([paymentReference])
+  @@map("service_order")
+}
+
+/// Journal d'exécution d'une commande : une ligne par transition écrite, avec la note
+/// rédigée pour le client. Rien n'est effacé : c'est le suivi que le client lit.
+model ServiceOrderEvent {
+  id             String       @id @default(cuid())
+  serviceOrderId String
+  serviceOrder   ServiceOrder @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
+
+  fromStatus ServiceOrderStatus?
+  toStatus   ServiceOrderStatus
+  /// Ce qui vient d'être fait, en une phrase lisible par le client.
+  note       String?
+  /// Origine de l'écriture : commande, paiement, équipe.
+  source     String              @default("system")
+
+  createdAt DateTime @default(now())
+
+  @@index([serviceOrderId, createdAt])
+  @@map("service_order_event")
+}
+
+/// Livrable remis au client sur une commande de prestation (rapport d'inspection,
+/// liste de fournisseurs, facture fournisseur…). Servi seulement sur une commande payée.
+model ServiceDeliverable {
+  id             String       @id @default(cuid())
+  serviceOrderId String
+  serviceOrder   ServiceOrder @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
+
+  title String
+  /// Extension du fichier, telle qu'elle a été déposée (pdf, xlsx, jpg…).
+  fileFormat String
+  sizeBytes  Int?
+  url        String
+  note       String?
+
+  createdAt DateTime @default(now())
+
+  @@index([serviceOrderId, createdAt])
+  @@map("service_deliverable")
+}

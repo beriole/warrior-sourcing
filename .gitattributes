@@ -1,0 +1,5 @@
+* text=auto eol=lf
+*.pdf binary
+*.ico binary
+
+apps/web/src/api/** linguist-generated=true

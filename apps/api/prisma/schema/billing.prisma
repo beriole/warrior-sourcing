@@ -1,0 +1,175 @@
+// Prix, promotions et abonnements (§43, lots SUB et promotions).
+//
+// Les offres et les promotions vivent en base : un changement de prix ne doit pas
+// demander un déploiement. Les valeurs d'énumération restent identiques à celles de
+// @ws/contracts (promotions.ts et subscriptions.ts).
+
+enum DiscountKind {
+  PERCENTAGE
+  AMOUNT
+  FIXED_PRICE
+  FREE
+}
+
+enum PromotionTarget {
+  COURSE
+  COURSE_THEME
+  ALL_COURSES
+  PLAN
+  ALL_PLANS
+}
+
+enum PromotionTrigger {
+  AUTOMATIC
+  CODE
+}
+
+enum BillingPeriod {
+  MONTHLY
+  YEARLY
+}
+
+enum SubscriptionRight {
+  SUPPLIER_CONTACTS
+  ACADEMY_INCLUDED
+  PRIORITY_SUPPORT
+  UNLIMITED_SAVED_CALCULATIONS
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PENDING_PAYMENT
+  EXPIRED
+  CANCELLED
+}
+
+/// Une promotion. Sa portée désigne ce qu'elle vise : une formation, un thème, toutes
+/// les formations, une offre d'abonnement, ou toutes.
+///
+/// `targetId` n'a pas de clé étrangère : selon la portée il désigne une formation, un
+/// thème (valeur d'énumération) ou une offre. Le service vérifie l'existence à la saisie.
+model Promotion {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+
+  kind       DiscountKind
+  /// Pourcentage entier, pour PERCENTAGE.
+  percentage Int?
+  /// Montant en FCFA : remise pour AMOUNT, nouveau prix pour FIXED_PRICE.
+  amountXaf  Int?
+
+  target   PromotionTarget
+  targetId String?
+
+  trigger PromotionTrigger @default(AUTOMATIC)
+  /// Code saisi par le client. Unique : deux promotions ne peuvent pas partager un code.
+  code    String?          @unique
+
+  startsAt DateTime
+  endsAt   DateTime?
+
+  /// Quota global. Nul = illimité, et rien n'est alors annoncé au client (§54).
+  maxRedemptions  Int?
+  maxPerCustomer  Int     @default(1)
+  firstPurchaseOnly Boolean @default(false)
+  minimumAmountXaf  Int?
+
+  active Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  redemptions PromotionRedemption[]
+
+  @@index([active, startsAt, endsAt])
+  @@index([target, targetId])
+  @@map("promotion")
+}
+
+/// Une utilisation effective. C'est cette table qui fait foi pour les quotas : compter
+/// les commandes serait faux dès qu'une commande est annulée avant paiement.
+model PromotionRedemption {
+  id          String    @id @default(cuid())
+  promotionId String
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Ce qui a été acheté, pour retrouver l'usage : identifiant de formation ou d'offre.
+  subjectId String?
+  /// Montant réellement économisé, figé au moment de l'achat.
+  discountXaf Int
+
+  createdAt DateTime @default(now())
+
+  @@index([promotionId, userId])
+  @@index([userId, createdAt])
+  @@map("promotion_redemption")
+}
+
+/// Offre d'abonnement. Les droits sont une liste fermée : chacun correspond à une
+/// vérification réelle côté serveur.
+model SubscriptionPlan {
+  id      String @id @default(cuid())
+  slug    String @unique
+  name    String
+  tagline String
+
+  priceXaf Int
+  period   BillingPeriod @default(MONTHLY)
+
+  rights                 SubscriptionRight[]
+  serviceDiscountPercent Int                 @default(0)
+  highlights             String[]            @default([])
+
+  position Int     @default(0)
+  active   Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subscriptions Subscription[]
+
+  @@index([active, position])
+  @@map("subscription_plan")
+}
+
+/// Abonnement d'un compte à une offre, pour une période donnée. Un renouvellement crée
+/// une nouvelle ligne : l'historique de ce qui a été payé reste lisible.
+model Subscription {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  planId String
+  plan   SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  status SubscriptionStatus @default(PENDING_PAYMENT)
+  /// Montant réellement payé pour cette période, promotion déduite.
+  paidXaf Int
+
+  startsAt DateTime
+  endsAt   DateTime
+
+  /// Référence du paiement du lot PAY. Pas de clé étrangère : le lot PAY possède son schéma.
+  paymentReference String?
+
+  /// Vrai quand le compte a été créé par cette souscription : il attend donc ses
+  /// identifiants de connexion, qui ne sont engendrés qu'à la confirmation du paiement.
+  /// Faux pour une souscription faite depuis un compte déjà existant — on ne touche
+  /// jamais au mot de passe de quelqu'un qui en a déjà un.
+  provisionCredentials Boolean @default(false)
+
+  /// Horodatage de l'envoi des identifiants. Sa présence rend l'envoi idempotent :
+  /// un webhook rejoué ne fabrique pas un second mot de passe, qui invaliderait le premier.
+  credentialsSentAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, endsAt(sort: Desc)])
+  @@index([status, endsAt])
+  @@map("subscription")
+}

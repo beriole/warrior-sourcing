@@ -1,0 +1,79 @@
+// Lot ADM : litiges du back-office (§39).
+// Les énumérations déclarées ici doivent rester identiques à leurs jumelles
+// de @ws/contracts (api-admin.ts).
+//
+// Les rattachements (commande, client, auteur) sont volontairement de simples
+// identifiants et non des relations Prisma : les modèles Order et User appartiennent
+// à d'autres lots, et une relation obligerait à modifier leurs schémas.
+
+/// Cahier §39 : sept étapes, dans l'ordre, sans raccourci possible.
+enum DisputeStatus {
+  OPENED
+  ANALYSIS
+  EVIDENCE
+  SUPPLIER_CONTACTED
+  PROPOSAL
+  RESOLVED
+  CLOSED
+}
+
+/// Motif du litige, tel que qualifié à l'ouverture.
+enum DisputeCategory {
+  NON_CONFORME
+  QUANTITE_MANQUANTE
+  CASSE
+  RETARD
+  NON_LIVRE
+  AUTRE
+}
+
+model Dispute {
+  id        String @id @default(cuid())
+  /// Référence lisible communiquée au client (LIT-AAAAMMJJ-XXXX).
+  reference String @unique
+
+  /// Commande concernée (`order.id`) et client à l'origine du litige (`user.id`).
+  orderId    String
+  customerId String
+
+  category    DisputeCategory
+  status      DisputeStatus   @default(OPENED)
+  subject     String
+  description String
+
+  /// Montant contesté puis, à la résolution, montant réellement accordé. FCFA entiers.
+  claimedAmountXaf  Int  @default(0)
+  resolvedAmountXaf Int?
+
+  /// Membre de l'équipe qui a ouvert le dossier (`user.id`).
+  openedById String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  closedAt  DateTime?
+
+  events DisputeEvent[]
+
+  @@index([status, createdAt(sort: Desc)])
+  @@index([orderId])
+  @@map("dispute")
+}
+
+/// Journal du litige : une ligne par franchissement d'étape, jamais modifiée ni supprimée.
+model DisputeEvent {
+  id         String         @id @default(cuid())
+  disputeId  String
+  dispute    Dispute        @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  fromStatus DisputeStatus?
+  toStatus   DisputeStatus
+  /// Ce qui a été fait à cette étape. Obligatoire.
+  note       String
+  /// Preuve éventuelle produite à cette étape (photo, document, échange).
+  evidenceUrl String?
+  /// Auteur de l'écriture (`user.id`).
+  actorId    String?
+  createdAt  DateTime       @default(now())
+
+  @@index([disputeId, createdAt])
+  @@map("dispute_event")
+}

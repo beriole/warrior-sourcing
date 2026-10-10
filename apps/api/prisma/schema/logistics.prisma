@@ -1,0 +1,81 @@
+// Lot LOG : événements logistiques, colis et inspection (§25, §38).
+// Le modèle Order vit dans orders.prisma (lot ORD) : ce fichier ne le modifie pas.
+// Les valeurs d'énumération doivent rester identiques à celles de @ws/contracts (INSPECTION_RESULTS).
+
+/// Cahier §38 : résultat d'une inspection en entrepôt Chine.
+enum InspectionResult {
+  COMPLIANT
+  WITH_RESERVATIONS
+  NON_COMPLIANT
+}
+
+/// Un événement réel enregistré par un agent. Chaque enregistrement fait avancer Order.stage.
+model ShipmentEvent {
+  id          String        @id @default(cuid())
+  orderId     String
+  order       Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  stage       ShipmentStage
+  occurredAt  DateTime
+  description String
+  /// Preuve principale (photo, document) : simple URL, le service d'upload est ailleurs.
+  proofUrl    String?
+  /// Preuves supplémentaires (photos, documents), toujours par URL.
+  proofUrls   String[]      @default([])
+  /// Agent qui a saisi l'événement : identifiant et nom figés au moment de la saisie.
+  recordedById   String?
+  recordedByName String?
+  /// Renseigné uniquement pour un retour en arrière, autorisé aux seuls administrateurs.
+  rollbackReason String?
+  /// Étape de la commande avant cet événement, pour l'historique et l'audit.
+  previousStage  ShipmentStage?
+  /// Rapport d'inspection dont cet événement découle, le cas échéant.
+  inspectionId   String?       @unique
+  inspection     InspectionReport? @relation(fields: [inspectionId], references: [id], onDelete: SetNull)
+  createdAt   DateTime      @default(now())
+
+  @@index([orderId, occurredAt])
+  @@index([stage])
+  @@map("shipment_event")
+}
+
+/// Colis physique d'une commande, identifié par un code unique lisible (§38).
+/// Pas de relation Prisma vers Order : orders.prisma appartient à un autre lot et ne peut pas
+/// recevoir le champ inverse. Le lien se fait par orderId, unique : un colis par commande au MVP.
+model Parcel {
+  id        String   @id @default(cuid())
+  orderId   String   @unique
+  /// Code affiché et recherchable, du type WS-7K3M-Q2ZP.
+  code      String   @unique
+  label     String?
+  createdAt DateTime @default(now())
+
+  @@map("parcel")
+}
+
+/// Rapport d'inspection (§38). Archivé : un rapport n'est jamais modifié ni supprimé.
+/// Même contrainte que Parcel : lien par orderId sans relation Prisma vers Order.
+model InspectionReport {
+  id               String           @id @default(cuid())
+  orderId          String
+  result           InspectionResult
+  quantityExpected Int?
+  quantityReceived Int?
+  defects          String?
+  packaging        String?
+  /// Mesures en texte libre (« 40 × 30 × 20 cm par carton »).
+  measurements     String?
+  /// Poids en grammes : entier, jamais de flottant.
+  weightGrams      Int?
+  photoUrls        String[]         @default([])
+  videoUrl         String?
+  notes            String?
+  inspectedAt      DateTime
+  inspectedById    String?
+  inspectedByName  String?
+  createdAt        DateTime         @default(now())
+
+  event ShipmentEvent?
+
+  @@index([orderId, inspectedAt])
+  @@map("inspection_report")
+}

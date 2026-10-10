@@ -1,0 +1,384 @@
+/*
+ * Couche de mouvement en CSS pur.
+ *
+ * Pourquoi pas JavaScript : une entrée animée par JavaScript part d'un état
+ * invisible rendu par le serveur, et ne devient visible qu'une fois le script
+ * hydraté. Sur un Android d'entrée de gamme ou une connexion lente, la page
+ * reste vide pendant ce temps — et si le script échoue, elle ne s'affiche jamais.
+ *
+ * Ici, l'animation démarre à la première image, sans attendre quoi que ce soit,
+ * et `both` garantit que l'élément finit à sa place même si rien d'autre ne
+ * s'exécute. Le JavaScript ne sert plus qu'aux gestes qui en ont besoin :
+ * compteurs, retour au doigt, indicateur de navigation partagé, trajet animé.
+ *
+ * Les valeurs reprennent les jetons de packages/ui/src/motion/tokens.ts.
+ */
+
+@media (prefers-reduced-motion: no-preference) {
+  :root {
+    --ws-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ws-ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+    --ws-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  }
+
+  /*
+   * ── Le mot monte depuis sa ligne de coupe : geste des titres ──
+   * La boîte du masque doit contenir les jambages, sinon le masquage coupe le
+   * bas des lettres. On agrandit la boîte puis on reprend la place en marge
+   * négative : le rythme vertical du texte reste inchangé.
+   */
+  .ws-mask {
+    display: block;
+    overflow: hidden;
+    padding-bottom: 0.24em;
+    margin-bottom: -0.24em;
+  }
+  .ws-mask > * {
+    display: block;
+    animation: ws-mask-rise 0.75s var(--ws-ease-out) both;
+    animation-delay: var(--ws-delay, 0s);
+  }
+
+  /* ── Le flou se résorbe avant que le texte ne se pose ── */
+  .ws-blur {
+    animation: ws-blur-rise 0.42s var(--ws-ease-out) both;
+    animation-delay: var(--ws-delay, 0s);
+  }
+
+  /* ── Les cartes partent de 0,96 : jamais de zéro, qui fait dessin animé ── */
+  .ws-card {
+    animation: ws-card-rise 0.5s var(--ws-ease-out) both;
+    animation-delay: var(--ws-delay, 0s);
+  }
+
+  /* ── Surtitre en capitales : l'interlettrage s'ouvre pendant l'arrivée ── */
+  .ws-label {
+    animation: ws-label-open 0.75s var(--ws-ease-out) both;
+    animation-delay: var(--ws-delay, 0s);
+  }
+
+  /* ── Entrée d'interface : courte, discrète, pour les écrans connectés ── */
+  .ws-ui {
+    animation: ws-ui-enter 0.26s var(--ws-ease-out) both;
+    animation-delay: var(--ws-delay, 0s);
+  }
+
+  /*
+   * ── Segment d'avancement qui se remplit ──
+   * Le trajet se redessine depuis le départ : on voit le chemin parcouru se
+   * reconstituer, au lieu de trouver une barre déjà remplie. Purement CSS,
+   * donc le remplissage a lieu même avant que le script de la page n'existe.
+   */
+  .ws-barre {
+    transform-origin: left center;
+    animation: ws-barre-remplit 0.5s var(--ws-ease-out) both;
+    animation-delay: var(--ws-delay, 0s);
+  }
+
+  /*
+   * ── Étape en cours : elle respire ──
+   * Lente et peu contrastée : elle signale « c'est ici que ça se passe »
+   * sans clignoter dans le coin de l'œil pendant qu'on lit le reste.
+   */
+  .ws-pouls {
+    animation: ws-pouls 2.4s var(--ws-ease-in-out) infinite;
+  }
+
+  /*
+   * ── Surface qui se soulève sous le curseur ──
+   * Une transition, pas une animation : elle suit le doigt ou la souris et
+   * s'annule quand ils partent. Une animation, elle, se jouerait jusqu'au bout
+   * même après que le curseur a quitté la carte.
+   */
+  .ws-eleve {
+    transition:
+      transform 0.3s var(--ws-ease-out),
+      box-shadow 0.3s var(--ws-ease-out);
+  }
+  .ws-eleve:hover {
+    transform: translateY(-3px);
+  }
+
+  /*
+   * ── Halo de fond qui dérive ──
+   * Très lent et très peu contrasté : il donne à la zone une respiration, sans
+   * jamais attirer l'œil pendant la lecture. Deux propriétés animées, jamais
+   * l'opacité seule, sinon le halo clignote.
+   */
+  .ws-derive {
+    animation: ws-derive 18s var(--ws-ease-in-out) infinite;
+  }
+
+  /*
+   * ── Flottement d'un élément décoratif ──
+   * Réservé à ce qui ne porte aucune information : le sinogramme du fond, une
+   * forme. Un élément lisible qui flotte se lit mal.
+   */
+  .ws-flotte {
+    animation: ws-flotte 14s var(--ws-ease-in-out) infinite;
+  }
+
+  /*
+   * ── Photo de fond qui dérive ──
+   *
+   * Un lent éloignement, de 1,08 à 1. Très lent et sans translation : une photo qui
+   * se déplace derrière un titre rend le titre difficile à lire, ce qui est le
+   * contraire du but. L'échelle de départ dépasse 1 pour qu'aucun bord ne se découvre.
+   */
+  .ws-photo-derive {
+    animation: ws-photo-derive 22s var(--ws-ease-out) both;
+  }
+
+  /*
+   * ── Tracé d'un trait SVG ──
+   *
+   * Le trait se dessine au lieu d'apparaître. `pathLength="1"` est posé sur le
+   * tracé, ce qui rend la longueur indépendante de la géométrie réelle.
+   *
+   * Il attend que son bloc soit passé devant l'écran, et pas une seconde de moins :
+   * un tracé qui démarre au chargement a fini depuis longtemps quand la section
+   * arrive enfin, et on ne voit alors qu'un trait déjà posé. Hors JavaScript, le
+   * trait est simplement plein — un filet absent se remarquerait plus qu'un filet
+   * qui n'a pas été dessiné.
+   */
+  [data-ws-js] .ws-trace {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+  }
+  [data-ws-js] [data-ws-vu] .ws-trace,
+  [data-ws-js] .ws-trace[data-ws-vu] {
+    animation: ws-trace 1.1s var(--ws-ease-out) both;
+    animation-delay: var(--ws-delay, 0s);
+  }
+
+  /*
+   * ── Révélation au défilement, une seule fois ──
+   *
+   * Pas `animation-timeline: view()` : une animation liée au défilement est
+   * rejouée à l'envers dès qu'on remonte, et tout ce qui est hors de l'écran
+   * retombe à son état de départ — donc invisible. Une page longue devient
+   * alors une suite de trous blancs pour qui remonte, et pour une capture.
+   *
+   * Ici, un observateur pose `data-ws-vu` au premier passage devant l'écran,
+   * et ne le retire jamais : la section se révèle une fois, puis elle reste.
+   * On marque par un attribut et non par une classe, parce que React gère
+   * `className` : à l'hydratation il peut le réécrire avec la valeur du
+   * serveur, ce qui effacerait la marque et laisserait la section vide.
+   *
+   * `data-ws-js` est posé sur <html> par ce même script, avant la première image.
+   * Un attribut plutôt qu'une classe : React possède `className` sur <html>, et le
+   * modifier avant l'hydratation faisait diverger le rendu serveur du rendu client.
+   * Sans lui — script bloqué, navigateur sans IntersectionObserver, mouvement
+   * réduit — la règle d'opacité ne s'applique pas et tout reste lisible.
+   */
+  [data-ws-js] .ws-onview {
+    opacity: 0;
+  }
+  [data-ws-js] .ws-onview[data-ws-vu] {
+    animation: ws-card-rise 0.62s var(--ws-ease-out) both;
+    animation-delay: var(--ws-delay, 0s);
+  }
+
+  /*
+   * Variante du geste de révélation. Le vocabulaire reste volontairement minuscule :
+   * la montée pour tout ce qui se lit de haut en bas, le glissement latéral pour une
+   * suite d'étapes qui se lit de gauche à droite. Mélanger balayage, glissement, volet
+   * et montée dans une même page donne un diaporama, pas une page.
+   */
+  [data-ws-js] .ws-onview[data-ws-vu].ws-geste-cote {
+    animation-name: ws-cote;
+  }
+  /*
+   * Volet : la découpe s'ouvre du bas vers le haut. Réservé aux **images**, où un
+   * fondu donne l'impression d'un chargement raté, et où une montée ferait glisser
+   * un bloc lourd. Le volet, lui, donne l'impression qu'on lève un rideau.
+   */
+  [data-ws-js] .ws-onview[data-ws-vu].ws-geste-volet {
+    animation-name: ws-volet;
+    animation-duration: 0.9s;
+  }
+
+  /*
+   * ── Avancement de lecture ──
+   * Lié au défilement, et c'est voulu : la barre doit reculer quand on remonte,
+   * sinon elle mentirait sur la position. `@supports` évite le pire des cas —
+   * sans prise en charge, l'animation se jouerait sur une durée et la barre se
+   * remplirait toute seule. Sans elle, la barre reste simplement vide.
+   */
+  @supports (animation-timeline: scroll()) {
+    .ws-avancement {
+      transform-origin: left center;
+      animation: ws-barre-remplit linear both;
+      animation-timeline: scroll(root block);
+    }
+  }
+}
+
+@keyframes ws-mask-rise {
+  from {
+    transform: translateY(115%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes ws-blur-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(8px);
+  }
+  60% {
+    filter: blur(0);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes ws-card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes ws-label-open {
+  from {
+    opacity: 0;
+    letter-spacing: 0.02em;
+  }
+  to {
+    opacity: 1;
+    letter-spacing: 0.18em;
+  }
+}
+
+@keyframes ws-barre-remplit {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes ws-pouls {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scaleY(1.9);
+  }
+}
+
+@keyframes ws-ui-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ws-derive {
+  0%,
+  100% {
+    opacity: 0.75;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate3d(-3%, 2%, 0) scale(1.08);
+  }
+}
+
+@keyframes ws-flotte {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-14px) rotate(-1.5deg);
+  }
+}
+
+@keyframes ws-trace {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Le volet ne touche pas à l'opacité : c'est la découpe qui révèle. */
+@keyframes ws-volet {
+  from {
+    opacity: 1;
+    clip-path: inset(100% 0 0 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes ws-photo-derive {
+  from {
+    transform: scale(1.08);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes ws-cote {
+  from {
+    opacity: 0;
+    transform: translateX(26px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/*
+ * À l'impression, aucune animation : une feuille imprimée n'a pas de défilement,
+ * et un élément resté à son état de départ serait tout simplement absent du papier.
+ */
+@media print {
+  .ws-mask > *,
+  .ws-blur,
+  .ws-card,
+  .ws-label,
+  .ws-ui,
+  .ws-barre,
+  .ws-pouls,
+  .ws-derive,
+  .ws-flotte,
+  .ws-photo-derive,
+  .ws-trace,
+  .ws-avancement,
+  .ws-onview {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+    clip-path: none !important;
+    stroke-dashoffset: 0 !important;
+  }
+}

@@ -1,0 +1,193 @@
+// Lot ORD + PAY : commandes, précommandes et paiements (§22, §23, §24).
+// Les énumérations ShipmentStage, PaymentMethod, PaymentStatus et ShippingMode vivent dans main.prisma.
+// Celles déclarées ici (état de commande, mode de réception, campagne) doivent rester
+// identiques à leurs jumelles de @ws/contracts (api-orders.ts).
+
+/// Cycle de vie court d'une commande : le suivi logistique fin vit dans `Order.stage`.
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  CANCELLED
+}
+
+/// Commande classique ou participation à une campagne de précommande (§22).
+enum OrderKind {
+  STANDARD
+  PREORDER
+}
+
+/// Cahier §23 : comment le client récupère sa marchandise au Cameroun.
+enum DeliveryMode {
+  WAREHOUSE_PICKUP
+  HOME_DELIVERY
+}
+
+/// Cahier §22 : une campagne se prépare, s'ouvre aux participations puis se ferme.
+enum PreorderCampaignStatus {
+  DRAFT
+  OPEN
+  CLOSED
+}
+
+model Order {
+  id        String      @id @default(cuid())
+  /// Référence lisible communiquée au client (WS-AAAAMMJJ-XXXX).
+  reference String      @unique
+  userId    String
+  user      User        @relation(fields: [userId], references: [id])
+  kind      OrderKind   @default(STANDARD)
+  status    OrderStatus @default(PENDING_PAYMENT)
+
+  /// Détail des frais, tous calculés côté serveur et figés à la commande (ORD-01).
+  /// Les valeurs par défaut servent aux autres lots qui créent une commande minimale en test.
+  subtotalXaf   Int @default(0)
+  freightXaf    Int @default(0)
+  serviceFeeXaf Int @default(0)
+  customsXaf    Int @default(0)
+  totalXaf      Int
+
+  /// Réception au Cameroun (§23).
+  city         String       @default("")
+  deliveryMode DeliveryMode @default(WAREHOUSE_PICKUP)
+  /// Numéro de contact du client, au format national à 9 chiffres.
+  phone        String       @default("")
+
+  shippingMode ShippingMode?
+  stage        ShipmentStage @default(ORDER_PAID)
+  /// Renseigné lorsque le paiement est confirmé.
+  paidAt       DateTime?
+
+  /// Campagne de précommande à laquelle cette commande participe, le cas échéant.
+  campaignId String?
+  campaign   PreorderCampaign? @relation(fields: [campaignId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lines    OrderLine[]
+  events   ShipmentEvent[]
+  payments Payment[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([campaignId, status])
+  @@map("order")
+}
+
+/// Ligne de commande : le libellé et le prix unitaire sont figés au moment de la commande.
+model OrderLine {
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  /// Produit du catalogue à l'origine de la ligne ; conservé même si le produit change ensuite.
+  productId String?
+  productSlug String?
+  label       String
+  quantity    Int
+  unitPriceXaf Int
+  lineTotalXaf Int
+
+  @@index([orderId])
+  @@map("order_line")
+}
+
+/// Cahier §22 : campagne de précommande groupée.
+model PreorderCampaign {
+  id          String                 @id @default(cuid())
+  slug        String                 @unique
+  title       String
+  description String
+  status      PreorderCampaignStatus @default(DRAFT)
+  imageUrl    String?
+  imageAlt    String?
+  /// Produit du catalogue servant de base à la campagne, s'il existe.
+  productId   String?
+
+  /// Prix unitaire de participation, en FCFA entiers.
+  unitPriceXaf    Int
+  /// Quantité totale à atteindre pour que la commande groupée parte.
+  minimumQuantity Int
+  endsAt          DateTime
+
+  /// Ce que couvre la participation et ce qu'elle ne couvre pas.
+  included String[] @default([])
+  excluded String[] @default([])
+  /// Délais annoncés (texte libre daté par updatedAt) et conditions de participation.
+  leadTime   String
+  conditions String
+  /// Questions fréquentes : tableau de { question, answer }.
+  faq Json @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders Order[]
+
+  @@index([status, endsAt])
+  @@map("preorder_campaign")
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  /// Référence transaction unique, communiquée au client.
+  reference   String        @unique
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  orderId     String?
+  order       Order?        @relation(fields: [orderId], references: [id])
+  /// Commande de prestation réglée par ce paiement (lot SRV). Sans clé étrangère : le lot
+  /// SRV possède son schéma, et un paiement n'appartient qu'à l'un des deux parcours.
+  serviceOrderId String?
+  /// Abonnement réglé par ce paiement (lot SUB). Même convention : pas de clé étrangère,
+  /// un paiement n'appartient qu'à un seul des quatre parcours.
+  subscriptionId String?
+  /// Achat d'une formation à l'unité (lot ACA, SUB-02). Même convention.
+  coursePurchaseId String?
+  method      PaymentMethod
+  status      PaymentStatus @default(INITIATED)
+  amountXaf   Int
+  refundedXaf Int           @default(0)
+  provider    String
+  /// Identifiant chez l'agrégateur : garantit l'idempotence des webhooks.
+  providerRef String?       @unique
+  /// Lien de paiement hébergé, quand l'agrégateur en fournit un.
+  providerLink String?
+  /// Numéro sur lequel la demande de paiement a été poussée.
+  payerPhone   String?
+  /// Motif communiqué par l'agrégateur en cas d'échec.
+  failureReason String?
+  /// Réconciliation : dernière vérification chez l'agrégateur et nombre de vérifications,
+  /// pour espacer les appels (6 par minute et par transaction au maximum).
+  lastCheckedAt DateTime?
+  checkCount    Int       @default(0)
+  paidAt        DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  events PaymentEvent[]
+
+  @@index([serviceOrderId])
+
+  @@index([subscriptionId])
+
+  @@index([coursePurchaseId])
+
+  @@index([userId])
+  @@index([status, expiresAt])
+  @@map("payment")
+}
+
+model PaymentEvent {
+  id         String         @id @default(cuid())
+  paymentId  String
+  payment    Payment        @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  fromStatus PaymentStatus?
+  toStatus   PaymentStatus
+  /// Origine de l'écriture : webhook, réconciliation, consultation, back-office.
+  source     String         @default("system")
+  payload    Json?
+  createdAt  DateTime       @default(now())
+
+  @@index([paymentId, createdAt])
+  @@map("payment_event")
+}

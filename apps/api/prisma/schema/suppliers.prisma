@@ -1,0 +1,368 @@
+// Lot SUP — fournisseurs (§15, §16, §17, §18, §19).
+//
+// Ces modèles complètent `Supplier` et `SupplierVerification`, définis dans main.prisma,
+// SANS les modifier : le lien se fait par la colonne `supplierId` seule, sans relation
+// Prisma, pour que deux lots n'aient jamais à éditer le même fichier de schéma.
+// Conséquence assumée : les jointures se font par requêtes séparées dans le service.
+//
+// Argent : entiers en unités mineures (FCFA = unité, CNY = fen). Jamais de Float.
+// Les valeurs d'énumération sont identiques à celles de packages/contracts/src/api-suppliers.ts.
+
+// ───────────────────────── Énumérations du lot ─────────────────────────
+
+/// Taille de l'atelier ou de l'usine, déclarée puis contrôlée lors d'une visite.
+enum SupplierFactoryScale {
+  WORKSHOP
+  SMALL
+  MEDIUM
+  LARGE
+}
+
+/// Nature d'un document fournisseur. Seuls les documents marqués publics sortent de l'API.
+enum SupplierDocumentKind {
+  BUSINESS_LICENSE
+  EXPORT_LICENSE
+  CERTIFICATION
+  FACTORY_AUDIT
+  QUALITY_REPORT
+  OTHER
+}
+
+/// Gravité d'un incident. §17 : un risque ne se masque jamais, même pour un partenaire.
+enum SupplierIncidentSeverity {
+  MINOR
+  MAJOR
+  CRITICAL
+}
+
+enum SupplierIncidentStatus {
+  OPEN
+  RESOLVED
+}
+
+/// Nature d'une photo réelle. Aucune image d'illustration : ces photos viennent de nos visites.
+enum SupplierPhotoKind {
+  FACTORY
+  PRODUCTION_LINE
+  WAREHOUSE
+  SAMPLE
+  PACKAGING
+  TEAM
+}
+
+/// Conditions de paiement acceptées par le fournisseur.
+enum SupplierPaymentTerm {
+  FULL_PREPAYMENT
+  DEPOSIT_30_70
+  DEPOSIT_50_50
+  ON_DELIVERY
+  ESCROW
+}
+
+/// Résultat d'une commande test passée par notre équipe.
+enum SupplierTestOrderOutcome {
+  CONFORMING
+  RESERVATION
+  NON_CONFORMING
+}
+
+/// Nature d'une demande envoyée depuis la fiche fournisseur (§18).
+enum SupplierRequestKind {
+  QUOTE
+  SOURCING
+}
+
+enum SupplierRequestStatus {
+  SUBMITTED
+  IN_PROGRESS
+  ANSWERED
+  CLOSED
+}
+
+// ───────────────────────── Profil d'usine (SUP-01) ─────────────────────────
+
+/// Un profil par fournisseur. Tout ce qui décrit l'outil de production.
+model SupplierProfile {
+  id                    String                @id @default(cuid())
+  supplierId            String                @unique
+  foundedYear           Int?
+  employeeCount         Int?
+  factoryScale          SupplierFactoryScale?
+  productionLines       Int?
+  /// Capacité mensuelle déclarée, en unités de produit.
+  monthlyCapacity       Int?
+  /// Le fournisseur possède-t-il l'usine, ou sous-traite-t-il ?
+  ownsFactory           Boolean               @default(false)
+  exportExperienceYears Int?
+  province              String?
+  /// Certifications déclarées (CE, RoHS, ISO 9001…). Une certification affichée doit avoir son document.
+  certifications        String[]              @default([])
+  /// Marchés d'export principaux, pour situer l'expérience du fournisseur.
+  mainMarkets           String[]              @default([])
+  /// Langues parlées par l'équipe commerciale.
+  languages             String[]              @default([])
+  /// Délai de réponse habituel constaté par notre équipe, en heures.
+  responseTimeHours     Int?
+  /// Présentation publique rédigée par notre équipe, sans promesse commerciale.
+  presentation          String?
+  /// Date du dernier contrôle de ces informations : affichée à côté d'elles (§2).
+  checkedAt             DateTime?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  @@map("supplier_profile")
+}
+
+// ───────────────────────── Produits proposés (SUP-01, SUP-03) ─────────────────────────
+
+/// Un produit proposé par le fournisseur. Sert aussi à la recherche par produit et par catégorie.
+model SupplierOffering {
+  id                String           @id @default(cuid())
+  supplierId        String
+  name              String
+  category          InterestCategory
+  description       String?
+  /// Prix unitaire indicatif en fen (1 CNY = 100 fen), relevé à une date donnée.
+  unitPriceCnyMinor Int?
+  /// Date du relevé de prix : un prix sans date ne s'affiche pas (§2).
+  priceObservedAt   DateTime?
+  moq               Int?
+  customizable      Boolean          @default(false)
+  sampleAvailable   Boolean          @default(false)
+  leadTimeDays      Int?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([supplierId])
+  @@index([category])
+  @@map("supplier_offering")
+}
+
+// ───────────────────────── Conditions commerciales (SUP-01) ─────────────────────────
+
+/// Un jeu de conditions par fournisseur : ce qu'il faut savoir avant de négocier.
+model SupplierTerms {
+  id                     String                @id @default(cuid())
+  supplierId             String                @unique
+  /// Valeur minimale de commande, en fen.
+  minOrderValueCnyMinor  Int?
+  paymentTerms           SupplierPaymentTerm[] @default([])
+  /// Acompte habituel en pourcentage entier (30 = 30 %).
+  depositPercent         Int?
+  sampleAvailable        Boolean               @default(false)
+  /// Coût d'un échantillon, en fen.
+  sampleCostCnyMinor     Int?
+  sampleLeadTimeDays     Int?
+  customizationOptions   String[]              @default([])
+  packagingOptions       String[]              @default([])
+  incoterms              String[]              @default([])
+  productionLeadTimeDays Int?
+  /// Les conditions sont-elles négociables ? Information donnée par notre équipe.
+  negotiable             Boolean               @default(false)
+  /// Date du dernier contrôle de ces conditions.
+  checkedAt             DateTime?
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+
+  @@map("supplier_terms")
+}
+
+// ───────────────────────── Documents (SUP-01) ─────────────────────────
+
+model SupplierDocument {
+  id         String               @id @default(cuid())
+  supplierId String
+  kind       SupplierDocumentKind
+  label      String
+  fileUrl    String
+  issuedAt   DateTime?
+  expiresAt  DateTime?
+  /// Date à laquelle notre équipe a contrôlé le document. Sans elle, il reste privé.
+  verifiedAt DateTime?
+  /// Un document public est visible dans l'aperçu de la fiche ; les autres restent internes.
+  isPublic   Boolean              @default(false)
+  createdAt  DateTime             @default(now())
+
+  @@index([supplierId])
+  @@map("supplier_document")
+}
+
+// ───────────────────────── Incidents (SUP-01, §17) ─────────────────────────
+
+/// Historique des problèmes rencontrés. Toujours visible : on ne masque jamais un risque (§17).
+model SupplierIncident {
+  id          String                   @id @default(cuid())
+  supplierId  String
+  occurredAt  DateTime
+  severity    SupplierIncidentSeverity
+  status      SupplierIncidentStatus   @default(OPEN)
+  summary     String
+  resolution  String?
+  resolvedAt  DateTime?
+  /// Référence de la commande concernée, quand l'incident vient d'une commande réelle.
+  orderReference String?
+  createdAt   DateTime                 @default(now())
+
+  @@index([supplierId, occurredAt])
+  @@map("supplier_incident")
+}
+
+// ───────────────────────── Commandes test (SUP-01, SUP-02) ─────────────────────────
+
+/// Commande passée par notre équipe. C'est la preuve du niveau « Fournisseur testé » (§16).
+model SupplierTestOrder {
+  id                  String                   @id @default(cuid())
+  supplierId          String
+  orderedAt           DateTime
+  receivedAt          DateTime?
+  productLabel        String
+  quantity            Int
+  /// Montant payé, en fen.
+  amountCnyMinor      Int
+  outcome             SupplierTestOrderOutcome
+  /// Rapport d'inspection : c'est lui qui peut justifier le niveau « Qualité testée ».
+  inspectionReportUrl String?
+  notes               String?
+  createdAt           DateTime                 @default(now())
+
+  @@index([supplierId, orderedAt])
+  @@map("supplier_test_order")
+}
+
+// ───────────────────────── Photos réelles (SUP-01) ─────────────────────────
+
+model SupplierPhoto {
+  id         String            @id @default(cuid())
+  supplierId String
+  kind       SupplierPhotoKind
+  url        String
+  caption    String?
+  /// Date de prise de vue : une photo sans date n'est pas une preuve.
+  takenAt    DateTime
+  /// Qui a pris la photo (agent Chine, inspection, fournisseur) : la source est toujours dite.
+  takenBy    String?
+  createdAt  DateTime          @default(now())
+
+  @@index([supplierId])
+  @@map("supplier_photo")
+}
+
+// ───────────────────────── Boutiques en ligne (SUP-01) ─────────────────────────
+
+/// Plateforme où le fournisseur tient une boutique. Identique à SUPPLIER_SHOP_PLATFORMS
+/// dans @ws/contracts.
+enum SupplierShopPlatform {
+  ALIBABA
+  C1688
+  MADE_IN_CHINA
+  GLOBAL_SOURCES
+  DHGATE
+  TAOBAO
+  WEBSITE
+  OTHER
+}
+
+/// Boutique en ligne d'un fournisseur.
+///
+/// Publique, à la différence des coordonnées : une vitrine 1688 ou Alibaba est déjà
+/// ouverte à tout le monde, et la masquer ne protégerait rien — elle se retrouve en une
+/// recherche. Ce qui reste protégé, ce sont les coordonnées directes (§17) : le nom du
+/// commercial, son numéro, son WeChat.
+model SupplierShopLink {
+  id         String               @id @default(cuid())
+  supplierId String
+  supplier   Supplier             @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  platform   SupplierShopPlatform
+  url        String
+  /// Nom de la boutique tel qu'il s'affiche sur la plateforme, quand il diffère du nom
+  /// du fournisseur. Vide : on affiche le nom de la plateforme.
+  label      String?
+  /// Date du dernier contrôle du lien : un lien mort affiché sans date fait perdre du temps.
+  checkedAt  DateTime?
+  position   Int                  @default(0)
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  @@unique([supplierId, url])
+  @@index([supplierId, position])
+  @@map("supplier_shop_link")
+}
+
+// ───────────────────────── Coordonnées protégées (§17) ─────────────────────────
+
+/// Coordonnées du fournisseur, isolées dans leur propre table : une requête sur le
+/// fournisseur ne peut donc jamais les renvoyer par accident. Une seule route les lit,
+/// et elle exige un rôle vérifié côté serveur.
+model SupplierContact {
+  id           String   @id @default(cuid())
+  supplierId   String   @unique
+  contactName  String?
+  phone        String?
+  whatsapp     String?
+  wechat       String?
+  email        String?
+  website      String?
+  storeUrl     String?
+  addressLine  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("supplier_contact")
+}
+
+/// Journal des accès aux coordonnées : qui a demandé quoi, et quand (§17, §40).
+model SupplierContactAccess {
+  id         String   @id @default(cuid())
+  supplierId String
+  userId     String
+  accessedAt DateTime @default(now())
+
+  @@index([supplierId, accessedAt])
+  @@index([userId])
+  @@map("supplier_contact_access")
+}
+
+// ───────────────────────── Passage d'un niveau à l'autre (SUP-02, §16) ─────────────────────────
+
+/// Trace d'une promotion (ou d'une rétrogradation) de niveau de vérification.
+/// `verificationId` pointe la ligne `SupplierVerification` qui porte la preuve : sans preuve,
+/// le service refuse la promotion, et donc aucun badge ne peut apparaître.
+model SupplierLevelChange {
+  id             String                     @id @default(cuid())
+  supplierId     String
+  fromLevel      SupplierVerificationLevel?
+  toLevel        SupplierVerificationLevel
+  /// Ligne de preuve associée dans `supplier_verification`.
+  verificationId String
+  reason         String
+  decidedById    String?
+  decidedAt      DateTime                   @default(now())
+
+  @@index([supplierId, decidedAt])
+  @@map("supplier_level_change")
+}
+
+// ───────────────────────── Demandes depuis la fiche (SUP-05) ─────────────────────────
+
+/// « Demander un devis » et « Demander un sourcing » : la demande est enregistrée côté
+/// serveur avec son auteur. Le dossier complet et sa timeline relèvent de SUP-06.
+model SupplierRequest {
+  id              String                @id @default(cuid())
+  reference       String                @unique
+  supplierId      String
+  userId          String
+  kind            SupplierRequestKind
+  status          SupplierRequestStatus @default(SUBMITTED)
+  productLabel    String
+  quantity        Int?
+  /// Budget indicatif du client, en FCFA (unité mineure = 1 FCFA).
+  budgetXafMinor  Int?
+  city            String?
+  details         String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@index([supplierId])
+  @@index([userId, createdAt])
+  @@map("supplier_request")
+}

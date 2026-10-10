@@ -1,0 +1,98 @@
+// Messagerie (lot MSG, §32) : un dossier écrit entre un client et l'équipe.
+//
+// Les valeurs d'énumération doivent rester identiques à celles de @ws/contracts
+// (api-messaging.ts). Rien n'est effacé : un message envoyé reste, même après clôture.
+
+enum ConversationCategory {
+  SUPPORT
+  SOURCING
+  LOGISTICS
+  TRAINING
+}
+
+/// Déduit de qui a écrit en dernier, sauf CLOSED qui est une décision de l'équipe.
+enum ConversationStatus {
+  OPEN
+  ANSWERED
+  CLOSED
+}
+
+enum MessageAuthorKind {
+  CLIENT
+  STAFF
+}
+
+/// Une conversation : un sujet, une catégorie, éventuellement une commande.
+model Conversation {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  category ConversationCategory
+  subject  String
+  status   ConversationStatus   @default(OPEN)
+
+  /// Référence de la commande ou de la prestation concernée. Sans clé étrangère : elle
+  /// peut viser une commande (WS-) comme une prestation (SRV-), deux tables distinctes.
+  orderReference String?
+
+  /// Dernières lectures, une par partie. Un seul horodatage par côté suffit à compter
+  /// les non-lus : les messages sont ordonnés dans le temps, et personne ne lit un
+  /// dossier à l'envers.
+  clientReadAt DateTime?
+  staffReadAt  DateTime?
+
+  /// Recopié à chaque message pour trier la liste sans joindre la table des messages.
+  lastMessageAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages Message[]
+
+  @@index([userId, lastMessageAt(sort: Desc)])
+  @@index([status, lastMessageAt(sort: Desc)])
+  @@index([orderReference])
+  @@map("conversation")
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  /// Identifiant du compte qui a écrit. Sans clé étrangère vers User : un intervenant
+  /// peut quitter l'équipe sans que le fil de l'échange disparaisse.
+  authorId   String
+  authorKind MessageAuthorKind
+  /// Nom au moment de l'envoi : il ne doit pas changer rétroactivement si le compte
+  /// est renommé plus tard.
+  authorName String
+
+  body String
+
+  createdAt DateTime @default(now())
+
+  attachments MessageAttachment[]
+
+  @@index([conversationId, createdAt])
+  @@map("message")
+}
+
+/// Description d'un fichier déposé via le lot PLAT. Le fichier lui-même vit chez
+/// l'hébergeur : la messagerie n'en garde que de quoi l'afficher et l'ouvrir.
+model MessageAttachment {
+  id        String  @id @default(cuid())
+  messageId String
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  title      String
+  fileFormat String
+  sizeBytes  Int?
+  url        String
+
+  createdAt DateTime @default(now())
+
+  @@index([messageId])
+  @@map("message_attachment")
+}

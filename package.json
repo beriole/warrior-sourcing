@@ -1,0 +1,26 @@
+{
+  "name": "warrior-sourcing",
+  "private": true,
+  "packageManager": "pnpm@12.4.2",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "db:migrate": "pnpm --filter @ws/api prisma:migrate",
+    "db:studio": "pnpm --filter @ws/api prisma:studio",
+    "format": "prettier --write .",
+    "db:create": "pnpm --filter @ws/api db:create",
+    "generate:api": "pnpm --filter @ws/api openapi:dump && pnpm --filter @ws/web generate:api"
+  },
+  "devDependencies": {
+    "@ws/tsconfig": "workspace:*",
+    "prettier": "^3.9.8",
+    "turbo": "^2.11.1",
+    "typescript": "^6.0.3"
+  }
+}

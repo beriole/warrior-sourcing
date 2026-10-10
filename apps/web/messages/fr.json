@@ -1,0 +1,145 @@
+{
+  "meta": {
+    "title": "Warrior Sourcing — Importez de Chine, plus simplement",
+    "description": "Apprendre, trouver, calculer, sourcer, importer, vendre : la plateforme qui accompagne votre importation Chine → Cameroun, du premier cours à la revente."
+  },
+  "nav": {
+    "login": "Se connecter",
+    "start": "Commencer"
+  },
+  "hero": {
+    "eyebrow": "Chine → Cameroun",
+    "line1": "Importez de Chine.",
+    "line2": "Plus simplement.",
+    "line3": "Plus intelligemment.",
+    "subtitle": "Formations, opportunités, fournisseurs contrôlés, calcul des coûts, paiement Mobile Money et suivi de vos colis jusqu’à Douala ou Yaoundé. Au même endroit.",
+    "ctaPrimary": "Commencer mon importation",
+    "ctaSecondary": "Découvrir les opportunités",
+    "routeLabel": "Trajet d’une commande : Guangzhou, entrepôt, transport, arrivée à Douala"
+  },
+  "pillars": {
+    "title": "Tout le parcours, une seule plateforme",
+    "learn": {
+      "title": "Apprendre",
+      "text": "Formations, guides et checklists pour éviter les erreurs coûteuses."
+    },
+    "source": {
+      "title": "Sourcer",
+      "text": "Fournisseurs avec un niveau de vérification expliqué, comparés sur les mêmes critères."
+    },
+    "import": {
+      "title": "Importer",
+      "text": "Paiement, inspection, consolidation et suivi étape par étape."
+    },
+    "sell": {
+      "title": "Vendre",
+      "text": "Suivez vos ventes, votre marge et le retour de votre capital."
+    }
+  },
+  "loop": {
+    "title": "Chaque étape mène à la suivante",
+    "steps": {
+      "learn": "Apprendre",
+      "find": "Trouver",
+      "calculate": "Calculer",
+      "source": "Sourcer",
+      "import": "Importer",
+      "receive": "Recevoir",
+      "sell": "Vendre",
+      "measure": "Mesurer",
+      "repeat": "Recommencer"
+    }
+  },
+  "simulator": {
+    "title": "Votre coût rendu, en quelques secondes",
+    "subtitle": "Saisissez vos chiffres : le calcul se met à jour immédiatement.",
+    "quantity": "Quantité",
+    "unitPrice": "Prix unitaire en Chine (FCFA)",
+    "freight": "Transport et frais (FCFA)",
+    "sellingPrice": "Prix de vente visé (FCFA)",
+    "totalCost": "Investissement total",
+    "unitLandedCost": "Coût rendu par unité",
+    "unitMargin": "Marge par unité",
+    "roi": "ROI potentiel",
+    "breakEven": "Seuil de rentabilité",
+    "breakEvenValue": "{count, plural, one {# unité vendue} other {# unités vendues}}",
+    "breakEvenNever": "Non atteint à ce prix",
+    "disclaimer": "Estimation à partir de vos hypothèses. Ce n’est pas une garantie de bénéfice.",
+    "cta": "Calculer ma rentabilité en détail"
+  },
+  "trust": {
+    "title": "Vous savez toujours d’où vient un chiffre",
+    "text": "Aucun bénéfice, délai ou résultat n’est présenté comme garanti. Chaque information porte sa nature.",
+    "suppliersTitle": "Un badge fournisseur dit exactement ce qui a été contrôlé"
+  },
+  "footer": {
+    "tagline": "Importez de Chine. Plus simplement. Plus intelligemment.",
+    "explore": "Explorer",
+    "account": "Mon compte",
+    "legalNote": "Les coûts et délais affichés sont des estimations fondées sur vos hypothèses. Ils ne constituent pas une garantie."
+  },
+  "figures": {
+    "label": "Le catalogue en chiffres",
+    "courses": "{count, plural, one {formation au catalogue} other {formations au catalogue}}",
+    "lessons": "{count, plural, one {leçon publiée} other {leçons publiées}}",
+    "hours": "{count, plural, one {heure de formation} other {heures de formation}}",
+    "minutes": "minutes de formation",
+    "verificationLevels": "niveaux de vérification fournisseur"
+  },
+  "academy": {
+    "eyebrow": "Academy",
+    "title": "Les formations, et ce qu’elles coûtent",
+    "all": "Tout le catalogue",
+    "composition": "{count, plural, one {# formation au catalogue} other {# formations au catalogue}}",
+    "free": "{count, plural, one {# gratuite} other {# gratuites}}",
+    "paid": "{count, plural, one {# payante} other {# payantes}}",
+    "included": "{count, plural, one {# incluse dans l’abonnement} other {# incluses dans l’abonnement}}",
+    "note": "Chaque fiche indique sa durée, son nombre de leçons et son prix — remise comprise lorsqu’une promotion s’applique.",
+    "more": "{count, plural, one {# autre formation dans le catalogue.} other {# autres formations dans le catalogue.}}"
+  },
+  "plans": {
+    "eyebrow": "Abonnement",
+    "title": "Ce que chaque formule ouvre",
+    "compare": "Comparer en détail",
+    "note": "Rien n’est masqué derrière un abonnement s’il s’agit d’une information de risque : un incident fournisseur reste visible d’un compte gratuit. L’abonnement ouvre des accès, il ne cache pas d’avertissement.",
+    "highlighted": "Le plus complet",
+    "rights": "Droits ouverts : {rights}.",
+    "startFree": "Commencer gratuitement",
+    "choose": "Choisir {plan}"
+  },
+  "finalCta": {
+    "eyebrow": "Commencer",
+    "title": "Votre première importation commence par un calcul",
+    "text": "Créez votre compte, chiffrez une opportunité, puis décidez. Le calculateur et le catalogue s’utilisent avant tout engagement.",
+    "primary": "Créer mon compte",
+    "secondary": "Calculer d’abord"
+  },
+  "journey": {
+    "eyebrow": "Le parcours",
+    "title": "Entre votre commande et votre boutique",
+    "text": "Votre fournisseur n’expédie pas chez vous. Il livre un entrepôt de groupage en Chine, qui rassemble, charge, et suit la marchandise jusqu’à son dédouanement.",
+    "cta": "Voir l’adresse à donner à mon fournisseur",
+    "steps": {
+      "order": {
+        "title": "Vous commandez et vous payez par étapes",
+        "text": "Acompte, production, solde après inspection. Chaque versement est lié à une preuve."
+      },
+      "warehouse": {
+        "title": "Le fournisseur livre l’entrepôt en Chine",
+        "text": "Avec votre code client sur les cartons : c’est lui qui rattache le colis à votre compte."
+      },
+      "consolidate": {
+        "title": "Vos colis sont regroupés et expédiés",
+        "text": "Maritime, aérien ou express, selon le poids, le volume et votre délai."
+      },
+      "customs": {
+        "title": "Le dossier passe la douane",
+        "text": "Facture, liste de colisage, classification. Un dossier incomplet se paie en jours de stationnement."
+      },
+      "deliver": {
+        "title": "Vous retirez ou vous êtes livré",
+        "text": "À Douala ou à Yaoundé, selon ce que sert votre transitaire."
+      }
+    }
+  }
+}

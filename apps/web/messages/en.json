@@ -1,0 +1,145 @@
+{
+  "meta": {
+    "title": "Warrior Sourcing — Import from China, made simple",
+    "description": "Learn, find, calculate, source, import, sell: the platform that guides your China → Cameroon imports, from the first lesson to the resale."
+  },
+  "nav": {
+    "login": "Log in",
+    "start": "Get started"
+  },
+  "hero": {
+    "eyebrow": "China → Cameroon",
+    "line1": "Import from China.",
+    "line2": "More simply.",
+    "line3": "More intelligently.",
+    "subtitle": "Training, opportunities, checked suppliers, cost calculation, Mobile Money payment and step-by-step tracking to Douala or Yaoundé. All in one place.",
+    "ctaPrimary": "Start my import",
+    "ctaSecondary": "Explore opportunities",
+    "routeLabel": "An order’s route: Guangzhou, warehouse, shipping, arrival in Douala"
+  },
+  "pillars": {
+    "title": "The whole journey, one platform",
+    "learn": {
+      "title": "Learn",
+      "text": "Courses, guides and checklists to avoid costly mistakes."
+    },
+    "source": {
+      "title": "Source",
+      "text": "Suppliers with an explained verification level, compared on the same criteria."
+    },
+    "import": {
+      "title": "Import",
+      "text": "Payment, inspection, consolidation and step-by-step tracking."
+    },
+    "sell": {
+      "title": "Sell",
+      "text": "Track your sales, your margin and how much capital you have recovered."
+    }
+  },
+  "loop": {
+    "title": "Every step leads to the next",
+    "steps": {
+      "learn": "Learn",
+      "find": "Find",
+      "calculate": "Calculate",
+      "source": "Source",
+      "import": "Import",
+      "receive": "Receive",
+      "sell": "Sell",
+      "measure": "Measure",
+      "repeat": "Repeat"
+    }
+  },
+  "simulator": {
+    "title": "Your landed cost, in seconds",
+    "subtitle": "Enter your figures: the result updates instantly.",
+    "quantity": "Quantity",
+    "unitPrice": "Unit price in China (FCFA)",
+    "freight": "Shipping and fees (FCFA)",
+    "sellingPrice": "Target selling price (FCFA)",
+    "totalCost": "Total investment",
+    "unitLandedCost": "Landed cost per unit",
+    "unitMargin": "Margin per unit",
+    "roi": "Potential ROI",
+    "breakEven": "Break-even point",
+    "breakEvenValue": "{count, plural, one {# unit sold} other {# units sold}}",
+    "breakEvenNever": "Not reached at this price",
+    "disclaimer": "Estimate based on your assumptions. Not a guarantee of profit.",
+    "cta": "Calculate my profitability in detail"
+  },
+  "trust": {
+    "title": "You always know where a figure comes from",
+    "text": "No profit, lead time or result is ever presented as guaranteed. Every piece of information shows its nature.",
+    "suppliersTitle": "A supplier badge says exactly what was checked"
+  },
+  "footer": {
+    "tagline": "Import from China. More simply. More intelligently.",
+    "explore": "Explore",
+    "account": "My account",
+    "legalNote": "Costs and lead times shown are estimates based on your own assumptions. They are not a guarantee."
+  },
+  "figures": {
+    "label": "The catalogue in numbers",
+    "courses": "{count, plural, one {course in the catalogue} other {courses in the catalogue}}",
+    "lessons": "{count, plural, one {published lesson} other {published lessons}}",
+    "hours": "{count, plural, one {hour of training} other {hours of training}}",
+    "minutes": "minutes of training",
+    "verificationLevels": "supplier verification levels"
+  },
+  "academy": {
+    "eyebrow": "Academy",
+    "title": "The courses, and what they cost",
+    "all": "Full catalogue",
+    "composition": "{count, plural, one {# course in the catalogue} other {# courses in the catalogue}}",
+    "free": "{count, plural, one {# free} other {# free}}",
+    "paid": "{count, plural, one {# paid} other {# paid}}",
+    "included": "{count, plural, one {# included in the subscription} other {# included in the subscription}}",
+    "note": "Every course page shows its length, its number of lessons and its price — discount included whenever a promotion applies.",
+    "more": "{count, plural, one {# more course in the catalogue.} other {# more courses in the catalogue.}}"
+  },
+  "plans": {
+    "eyebrow": "Subscription",
+    "title": "What each plan opens up",
+    "compare": "Compare in detail",
+    "note": "Nothing that warns you about a risk is ever hidden behind a subscription: a supplier incident stays visible from a free account. A subscription opens access; it does not hide a warning.",
+    "highlighted": "Most complete",
+    "rights": "Access granted: {rights}.",
+    "startFree": "Start for free",
+    "choose": "Choose {plan}"
+  },
+  "finalCta": {
+    "eyebrow": "Get started",
+    "title": "Your first import starts with a calculation",
+    "text": "Create your account, price an opportunity, then decide. The calculator and the catalogue are free to use before you commit to anything.",
+    "primary": "Create my account",
+    "secondary": "Run the numbers first"
+  },
+  "journey": {
+    "eyebrow": "The journey",
+    "title": "Between your order and your shop",
+    "text": "Your supplier does not ship to your door. They deliver to a consolidation warehouse in China, which groups, loads and follows the goods through customs.",
+    "cta": "See the address to give my supplier",
+    "steps": {
+      "order": {
+        "title": "You order and pay in stages",
+        "text": "Deposit, production, balance after inspection. Every payment is tied to a proof."
+      },
+      "warehouse": {
+        "title": "The supplier delivers to the warehouse in China",
+        "text": "With your client code on the cartons: that is what links the parcel to your account."
+      },
+      "consolidate": {
+        "title": "Your parcels are grouped and shipped",
+        "text": "Sea, air or express, depending on weight, volume and how fast you need it."
+      },
+      "customs": {
+        "title": "The file clears customs",
+        "text": "Invoice, packing list, tariff classification. An incomplete file is paid for in days of storage."
+      },
+      "deliver": {
+        "title": "You collect, or you are delivered",
+        "text": "In Douala or Yaoundé, depending on what your forwarder serves."
+      }
+    }
+  }
+}

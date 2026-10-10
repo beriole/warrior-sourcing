@@ -1,0 +1,143 @@
+/*
+ * Tokens de la charte (cahier §5 et §44).
+ * Chaque app importe ce fichier après `@import "tailwindcss";`.
+ * Règle : les composants utilisent les tokens sémantiques (primary, surface…),
+ * jamais directement les couleurs de marque.
+ */
+
+@theme {
+  /* Couleurs de marque */
+  --color-imperial: #c8102e;
+  --color-imperial-hover: #a50d26;
+  --color-imperial-soft: #fbe7ea;
+  --color-bordeaux: #6b0f1a;
+  --color-bordeaux-deep: #4a0a12;
+  --color-gold: #d4a537;
+  --color-gold-soft: #f6ead0;
+  --color-gold-ink: #7d5a12;
+  --color-charcoal: #141417;
+  --color-charcoal-raised: #1e1e24;
+  --color-ivory: #faf7f2;
+  --color-night: #0e1a33;
+  --color-night-raised: #17274a;
+  --color-night-soft: #e6ebf5;
+
+  /* États (jamais transmis uniquement par la couleur : toujours icône + libellé) */
+  --color-success: #1e7a4c;
+  --color-success-soft: #e3f3ea;
+  --color-warning: #9a5b0b;
+  --color-warning-soft: #fdf0dc;
+  --color-danger: #b42318;
+  --color-danger-soft: #fdeceb;
+
+  /* Provenance des données (§2, §30) */
+  --color-verified: var(--color-success);
+  --color-verified-soft: var(--color-success-soft);
+  --color-estimate: var(--color-gold-ink);
+  --color-estimate-soft: var(--color-gold-soft);
+  --color-ai: #4338ca;
+  --color-ai-soft: #eceafd;
+
+  /* Rayons cohérents, ombres légères (§44) */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.25rem;
+  --shadow-card: 0 1px 2px rgb(20 20 23 / 0.06), 0 4px 12px -4px rgb(20 20 23 / 0.08);
+  --shadow-raised: 0 8px 24px -8px rgb(20 20 23 / 0.18);
+
+  /* Mouvement : court, jamais bloquant (§7) */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-shimmer: shimmer 1.4s linear infinite;
+
+  @keyframes shimmer {
+    from {
+      background-position: -200% 0;
+    }
+    to {
+      background-position: 200% 0;
+    }
+  }
+}
+
+/* Tokens sémantiques, redéfinis par thème */
+:root {
+  --background: var(--color-ivory);
+  --foreground: #1a1a1f;
+  --surface: #ffffff;
+  --surface-muted: #f2ede4;
+  --border: #e6ded0;
+  --muted-foreground: #5e5a55;
+  --primary: var(--color-imperial);
+  --primary-hover: var(--color-imperial-hover);
+  --primary-foreground: #ffffff;
+  --accent: var(--color-gold);
+  --accent-foreground: var(--color-charcoal);
+  --ring: var(--color-imperial);
+}
+
+[data-theme='dark'] {
+  --background: var(--color-charcoal);
+  --foreground: #f4f1ec;
+  --surface: var(--color-charcoal-raised);
+  --surface-muted: #26262d;
+  --border: #33333b;
+  --muted-foreground: #b3aea6;
+  --ring: var(--color-gold);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-ring: var(--ring);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Chiffres financiers très lisibles (§44) */
+  .figures {
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  /* Animations désactivables (§8, §46) : réglage système ou préférence de l'app */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  [data-motion='reduced'] *,
+  [data-motion='reduced'] *::before,
+  [data-motion='reduced'] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

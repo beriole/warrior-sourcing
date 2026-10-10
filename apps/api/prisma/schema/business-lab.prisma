@@ -1,0 +1,54 @@
+// Business Lab (lot LAB, §27) : suivre ce qu'une importation a réellement rapporté.
+//
+// Montants : entiers en FCFA. Les indicateurs ne sont pas stockés — ils sont recalculés
+// à partir des ventes par `computeBusinessMetrics` dans @ws/contracts, pour qu'un chiffre
+// affiché ne puisse jamais diverger d'un chiffre enregistré.
+
+/// Projet commercial : un lot importé, son capital, et les ventes qui en découlent.
+model BusinessProject {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name String
+  /// Capital engagé, rendu au Cameroun : marchandise, fret et frais compris.
+  capitalXaf Int
+  /// Nombre d'unités achetées.
+  quantity Int
+  /// Prix de vente visé à l'unité. Un repère, jamais une promesse (§54).
+  targetUnitPriceXaf Int
+
+  /// Référence de la commande d'importation suivie, quand il y en a une. Sans clé
+  /// étrangère : une importation faite hors plateforme peut aussi être suivie ici.
+  orderReference String?
+
+  startedAt DateTime
+  notes     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sales BusinessSale[]
+
+  @@index([userId, startedAt(sort: Desc)])
+  @@map("business_project")
+}
+
+/// Une vente saisie au fil de l'eau. C'est la seule source des indicateurs : rien n'est
+/// projeté à partir d'un rythme supposé.
+model BusinessSale {
+  id        String          @id @default(cuid())
+  projectId String
+  project   BusinessProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  quantity Int
+  /// Prix réellement obtenu à l'unité, qui n'est pas toujours le prix visé.
+  unitPriceXaf Int
+  soldAt       DateTime
+  note         String?
+
+  createdAt DateTime @default(now())
+
+  @@index([projectId, soldAt(sort: Desc)])
+  @@map("business_sale")
+}

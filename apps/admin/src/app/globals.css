@@ -1,0 +1,14 @@
+@import 'tailwindcss';
+@import '@ws/ui/styles.css';
+
+@source '../../../../packages/ui/src';
+
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+  }
+}

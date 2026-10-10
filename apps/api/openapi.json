@@ -1,0 +1,918 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/v1/health": {
+      "get": {
+        "operationId": "HealthController_check",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "database": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "database"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Santé"
+        ]
+      }
+    },
+    "/v1/calculator/landed-cost": {
+      "post": {
+        "operationId": "CalculatorController_landedCost",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true,
+                    "maximum": 9007199254740991
+                  },
+                  "unitPurchasePrice": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "chinaInlandTransport": {
+                    "default": 0,
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "inspection": {
+                    "default": 0,
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "packaging": {
+                    "default": 0,
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "insurance": {
+                    "default": 0,
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "freight": {
+                    "default": 0,
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "serviceFee": {
+                    "default": 0,
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "customsEstimate": {
+                    "default": 0,
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "otherCosts": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "label": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "amount": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "label",
+                        "amount"
+                      ]
+                    }
+                  },
+                  "unitSellingPrice": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "quantity",
+                  "unitPurchasePrice"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "provenance": {
+                      "type": "string",
+                      "enum": [
+                        "ESTIMATE"
+                      ]
+                    },
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "merchandiseCost": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "chinaInlandTransport": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "inspection": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "freight": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "otherCosts": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "totalCost": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "unitLandedCost": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "selling": {
+                          "nullable": true,
+                          "type": "object",
+                          "properties": {
+                            "unitSellingPrice": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "revenue": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "unitMargin": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "totalMargin": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "roi": {
+                              "type": "number"
+                            },
+                            "breakEvenUnits": {
+                              "nullable": true,
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "unitSellingPrice",
+                            "revenue",
+                            "unitMargin",
+                            "totalMargin",
+                            "roi",
+                            "breakEvenUnits"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "merchandiseCost",
+                        "chinaInlandTransport",
+                        "inspection",
+                        "freight",
+                        "otherCosts",
+                        "totalCost",
+                        "unitLandedCost",
+                        "selling"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "provenance",
+                    "result"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Coût rendu Cameroun, marge, ROI et seuil de rentabilité (estimation)",
+        "tags": [
+          "Calculateur"
+        ]
+      }
+    },
+    "/v1/me/profile/options": {
+      "get": {
+        "operationId": "OnboardingController_options",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "levels": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "label"
+                        ]
+                      }
+                    },
+                    "goals": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "label"
+                        ]
+                      }
+                    },
+                    "budgets": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "min": {
+                            "type": "number"
+                          },
+                          "max": {
+                            "nullable": true,
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "min",
+                          "max"
+                        ]
+                      }
+                    },
+                    "interests": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "label"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "levels",
+                    "goals",
+                    "budgets",
+                    "interests"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Options de l’onboarding : niveaux, objectifs, budgets, catégories",
+        "tags": [
+          "Onboarding"
+        ]
+      }
+    },
+    "/v1/me/profile": {
+      "put": {
+        "operationId": "OnboardingController_save",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "level": {
+                    "type": "string",
+                    "enum": [
+                      "BEGINNER",
+                      "FEW_ORDERS",
+                      "REGULAR",
+                      "TRADER",
+                      "COMPANY"
+                    ]
+                  },
+                  "goals": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "LEARN",
+                        "FIND_PRODUCTS",
+                        "FIND_SUPPLIERS",
+                        "ORDER",
+                        "REDUCE_COSTS",
+                        "GROW_BUSINESS"
+                      ]
+                    }
+                  },
+                  "budgetRange": {
+                    "type": "string",
+                    "enum": [
+                      "UNDER_100K",
+                      "FROM_100K_TO_300K",
+                      "FROM_300K_TO_1M",
+                      "FROM_1M_TO_5M",
+                      "OVER_5M"
+                    ]
+                  },
+                  "interests": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "PHONES",
+                        "ACCESSORIES",
+                        "FASHION",
+                        "BEAUTY",
+                        "HOME",
+                        "ELECTRONICS",
+                        "AUTO_MOTO",
+                        "MACHINES",
+                        "PACKAGING",
+                        "OTHER"
+                      ]
+                    }
+                  },
+                  "city": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 80
+                  }
+                },
+                "required": [
+                  "level",
+                  "goals",
+                  "budgetRange",
+                  "interests"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "onboardingCompleted": {
+                      "type": "boolean"
+                    },
+                    "profile": {
+                      "type": "object",
+                      "properties": {
+                        "level": {
+                          "type": "string",
+                          "enum": [
+                            "BEGINNER",
+                            "FEW_ORDERS",
+                            "REGULAR",
+                            "TRADER",
+                            "COMPANY"
+                          ]
+                        },
+                        "goals": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "LEARN",
+                              "FIND_PRODUCTS",
+                              "FIND_SUPPLIERS",
+                              "ORDER",
+                              "REDUCE_COSTS",
+                              "GROW_BUSINESS"
+                            ]
+                          }
+                        },
+                        "budgetRange": {
+                          "type": "string",
+                          "enum": [
+                            "UNDER_100K",
+                            "FROM_100K_TO_300K",
+                            "FROM_300K_TO_1M",
+                            "FROM_1M_TO_5M",
+                            "OVER_5M"
+                          ]
+                        },
+                        "interests": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "PHONES",
+                              "ACCESSORIES",
+                              "FASHION",
+                              "BEAUTY",
+                              "HOME",
+                              "ELECTRONICS",
+                              "AUTO_MOTO",
+                              "MACHINES",
+                              "PACKAGING",
+                              "OTHER"
+                            ]
+                          }
+                        },
+                        "city": {
+                          "nullable": true,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "level",
+                        "goals",
+                        "budgetRange",
+                        "interests",
+                        "city"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "onboardingCompleted",
+                    "profile"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Enregistre ou met à jour le profil d’importateur",
+        "tags": [
+          "Onboarding"
+        ]
+      }
+    },
+    "/v1/dashboard": {
+      "get": {
+        "operationId": "DashboardController_dashboard",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "displayName": {
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "CLIENT",
+                            "PREMIUM_MEMBER",
+                            "TRAINER",
+                            "SOURCING_AGENT",
+                            "CHINA_AGENT",
+                            "LOGISTICS_AGENT",
+                            "SUPPORT",
+                            "CONTENT_MANAGER",
+                            "ADMIN",
+                            "SUPER_ADMIN"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "displayName",
+                        "role"
+                      ]
+                    },
+                    "onboardingCompleted": {
+                      "type": "boolean"
+                    },
+                    "activity": {
+                      "type": "object",
+                      "properties": {
+                        "activeOrders": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "inTransit": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "readyForPickup": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "delivered": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "activeOrders",
+                        "inTransit",
+                        "readyForPickup",
+                        "delivered"
+                      ]
+                    },
+                    "urgentOrder": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "reference": {
+                          "type": "string"
+                        },
+                        "stage": {
+                          "type": "string",
+                          "enum": [
+                            "ORDER_PAID",
+                            "SUPPLIER_CONFIRMED",
+                            "IN_PRODUCTION",
+                            "SHIPPED_TO_WAREHOUSE",
+                            "AT_CHINA_WAREHOUSE",
+                            "INSPECTION",
+                            "CONSOLIDATION",
+                            "IN_TRANSIT",
+                            "ARRIVED_CAMEROON",
+                            "CUSTOMS",
+                            "AT_LOCAL_WAREHOUSE",
+                            "READY_FOR_PICKUP",
+                            "DELIVERED"
+                          ]
+                        },
+                        "stageLabel": {
+                          "type": "string"
+                        },
+                        "nextStageLabel": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "progress": {
+                          "type": "number"
+                        },
+                        "totalXaf": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "lastEvent": {
+                          "nullable": true,
+                          "type": "object",
+                          "properties": {
+                            "description": {
+                              "type": "string"
+                            },
+                            "occurredAt": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            }
+                          },
+                          "required": [
+                            "description",
+                            "occurredAt"
+                          ]
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        }
+                      },
+                      "required": [
+                        "reference",
+                        "stage",
+                        "stageLabel",
+                        "nextStageLabel",
+                        "progress",
+                        "totalXaf",
+                        "lastEvent",
+                        "updatedAt"
+                      ]
+                    },
+                    "nextAction": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        },
+                        "reason": {
+                          "type": "string"
+                        },
+                        "href": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "label",
+                        "reason",
+                        "href"
+                      ]
+                    },
+                    "opportunities": {
+                      "type": "array",
+                      "items": {}
+                    },
+                    "currentCourse": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "title": {
+                          "type": "string"
+                        },
+                        "progressPercent": {
+                          "type": "number"
+                        },
+                        "href": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "title",
+                        "progressPercent",
+                        "href"
+                      ]
+                    },
+                    "unreadNotifications": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "user",
+                    "onboardingCompleted",
+                    "activity",
+                    "urgentOrder",
+                    "nextAction",
+                    "opportunities",
+                    "currentCourse",
+                    "unreadNotifications"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Activité, commande la plus urgente et prochaine action recommandée",
+        "tags": [
+          "Tableau de bord"
+        ]
+      }
+    },
+    "/v1/me": {
+      "get": {
+        "operationId": "AuthController_me",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "phoneNumber": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "CLIENT",
+                            "PREMIUM_MEMBER",
+                            "TRAINER",
+                            "SOURCING_AGENT",
+                            "CHINA_AGENT",
+                            "LOGISTICS_AGENT",
+                            "SUPPORT",
+                            "CONTENT_MANAGER",
+                            "ADMIN",
+                            "SUPER_ADMIN"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "email",
+                        "phoneNumber",
+                        "role"
+                      ]
+                    },
+                    "onboardingCompleted": {
+                      "type": "boolean"
+                    },
+                    "profile": {
+                      "nullable": true,
+                      "type": "object",
+                      "properties": {
+                        "level": {
+                          "type": "string",
+                          "enum": [
+                            "BEGINNER",
+                            "FEW_ORDERS",
+                            "REGULAR",
+                            "TRADER",
+                            "COMPANY"
+                          ]
+                        },
+                        "goals": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "LEARN",
+                              "FIND_PRODUCTS",
+                              "FIND_SUPPLIERS",
+                              "ORDER",
+                              "REDUCE_COSTS",
+                              "GROW_BUSINESS"
+                            ]
+                          }
+                        },
+                        "budgetRange": {
+                          "type": "string",
+                          "enum": [
+                            "UNDER_100K",
+                            "FROM_100K_TO_300K",
+                            "FROM_300K_TO_1M",
+                            "FROM_1M_TO_5M",
+                            "OVER_5M"
+                          ]
+                        },
+                        "interests": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "PHONES",
+                              "ACCESSORIES",
+                              "FASHION",
+                              "BEAUTY",
+                              "HOME",
+                              "ELECTRONICS",
+                              "AUTO_MOTO",
+                              "MACHINES",
+                              "PACKAGING",
+                              "OTHER"
+                            ]
+                          }
+                        },
+                        "city": {
+                          "nullable": true,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "level",
+                        "goals",
+                        "budgetRange",
+                        "interests",
+                        "city"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "user",
+                    "onboardingCompleted",
+                    "profile"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Utilisateur connecté et état de son onboarding",
+        "tags": [
+          "Compte"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Warrior Sourcing API",
+    "description": "API de la plateforme d’importation Chine → Cameroun",
+    "version": "0.1.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "schemas": {}
+  }
+}

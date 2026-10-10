@@ -1,0 +1,103 @@
+// Transitaires, grilles tarifaires (lot CARGO) et simulations du calculateur (lot CALC).
+// Les valeurs d'énumération doivent rester identiques à celles de @ws/contracts.
+// Montants : entiers en FCFA. Jamais de Float pour de l'argent.
+
+/// Unité de facturation d'une grille : au kilo (aérien, express) ou au mètre cube (maritime).
+enum FreightRateUnit {
+  KG
+  CBM
+}
+
+/// Transitaire (CARGO-01). Jamais supprimé : on le désactive pour garder son historique.
+model Forwarder {
+  id           String        @id @default(cuid())
+  name         String
+  contactName  String?
+  contactPhone String?
+  contactEmail String?
+  /// Villes desservies au Cameroun (Douala, Yaoundé…).
+  cities       String[]
+  /// Modes de transport réellement servis par ce transitaire.
+  modes        ShippingMode[]
+  active       Boolean       @default(true)
+  notes        String?
+
+  /// ── Entrepôt de groupage en Chine (CARGO-03) ──
+  ///
+  /// C'est l'adresse que l'importateur donne à son fournisseur chinois. Elle est saisie
+  /// par l'administration, jamais devinée ni engendrée : une adresse inventée envoie une
+  /// marchandise nulle part, et personne ne la retrouve.
+  ///
+  /// L'adresse **en caractères chinois** est celle qui compte : c'est elle que le
+  /// transporteur local lit. La version latine ne sert qu'à relire la saisie.
+  warehouseName         String?
+  warehouseAddressZh    String?
+  warehouseAddressLatin String?
+  warehouseContactName  String?
+  warehousePhone        String?
+  /// Consignes propres à cet entrepôt : marquage des cartons, horaires, pièces à joindre.
+  warehouseInstructions String?
+  /// Utilisateur de l'administration ayant créé la fiche (pas de clé étrangère : lot AUTH).
+  createdById  String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  rates       FreightRate[]
+  simulations ImportSimulation[]
+
+  @@index([active])
+  @@map("forwarder")
+}
+
+/// Grille tarifaire (CARGO-02).
+/// Une ligne n'est jamais modifiée : un nouveau tarif date l'ancien, qui reste consultable.
+model FreightRate {
+  id               String          @id @default(cuid())
+  forwarderId      String
+  forwarder        Forwarder       @relation(fields: [forwarderId], references: [id], onDelete: Cascade)
+  mode             ShippingMode
+  unit             FreightRateUnit
+  /// Prix unitaire en FCFA entier, pour un kilo ou un mètre cube.
+  unitPriceXaf     Int
+  /// Minimum facturé, quelle que soit la quantité.
+  minimumChargeXaf Int             @default(0)
+  /// Palier : la grille s'applique à partir de ce poids facturable, en kilos.
+  weightBreakKg    Int             @default(0)
+  /// Délai annoncé par le transitaire, en jours.
+  transitDays      Int
+  /// Devise du tarif. Seul le FCFA est accepté pour l'instant (conversion datée à venir, CALC-03).
+  currency         Currency        @default(XAF)
+  effectiveFrom    DateTime
+  /// D'où vient ce tarif : devis, email, appel. Affiché à côté du montant.
+  source           String
+  active           Boolean         @default(true)
+  createdById      String?
+  createdAt        DateTime        @default(now())
+
+  @@index([forwarderId, mode, effectiveFrom(sort: Desc)])
+  @@index([mode, active])
+  @@map("freight_rate")
+}
+
+/// Simulation sauvegardée (CALC-05) : reprise et duplication depuis le profil.
+/// `userId` n'a pas de clé étrangère : le modèle User appartient au lot AUTH.
+model ImportSimulation {
+  id                String       @id @default(cuid())
+  userId            String
+  label             String
+  mode              ShippingMode
+  forwarderId       String?
+  forwarder         Forwarder?   @relation(fields: [forwarderId], references: [id], onDelete: SetNull)
+  quantity          Int
+  /// Entrée d'origine, telle que saisie : elle permet de rejouer le calcul.
+  input             Json
+  /// Résultat au moment de l'enregistrement, avec le tarif appliqué et sa date.
+  result            Json
+  totalXaf          Int
+  unitLandedCostXaf Int
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("import_simulation")
+}

@@ -1,0 +1,144 @@
+// Produits et opportunités (lot CAT, §12 et §13).
+// Montants : entiers en unités mineures (FCFA = unité). Jamais de Float pour de l'argent.
+// Les valeurs d'énumération doivent rester identiques à celles de @ws/contracts (api-catalog.ts).
+
+// ───────────────────────── Énumérations ─────────────────────────
+
+enum ProductStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+/// Sert à la demande locale comme à la concurrence.
+enum MarketLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TransportEase {
+  EASY
+  MODERATE
+  DIFFICULT
+}
+
+/// Faits vérifiables, jamais de promesse commerciale (§54).
+enum ProductBadge {
+  LOW_MOQ
+  LIGHT_WEIGHT
+  SMALL_VOLUME
+  SAMPLE_AVAILABLE
+  CUSTOMIZABLE
+  VERIFIED_SUPPLIER
+  FRAGILE
+  BATTERY
+}
+
+/// Nature d'une donnée affichée (§2). Identique à DATA_PROVENANCES dans @ws/contracts.
+enum DataProvenance {
+  VERIFIED
+  ESTIMATE
+  AI_SUGGESTION
+}
+
+// ───────────────────────── Produit (§12, CAT-01) ─────────────────────────
+
+model Product {
+  id          String           @id @default(cuid())
+  /// Identifiant lisible utilisé dans les URL.
+  slug        String           @unique
+  name        String
+  description String
+  category    InterestCategory
+  status      ProductStatus    @default(DRAFT)
+
+  /// Prix d'achat en Chine, dans sa devise d'origine, en unités mineures.
+  purchasePriceMinor Int
+  purchaseCurrency   Currency @default(CNY)
+  /// Même prix converti en FCFA : le taux, sa date et sa source sont conservés (§20).
+  purchasePriceXaf   Int
+  exchangeRate       Decimal  @db.Decimal(18, 8)
+  exchangeRateAt     DateTime
+  exchangeRateSource String
+
+  /// Quantité minimum de commande acceptée par le fournisseur.
+  moq         Int
+  /// Poids unitaire en grammes : base du fret estimé.
+  weightGrams Int
+  /// Volume unitaire en cm³, quand il a été mesuré.
+  volumeCm3   Int?
+
+  badges ProductBadge[]
+  /// Points de vigilance rédigés par l'équipe : ce qui peut mal se passer (§13).
+  watchPoints String[]
+  /// Fournisseurs liés, par identifiant. Les fiches sont servies par le lot SUP.
+  supplierIds String[]
+
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  images     ProductImage[]
+  marketData ProductMarketData?
+
+  @@index([status, publishedAt(sort: Desc)])
+  @@index([category])
+  @@map("product")
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  /// Texte alternatif obligatoire : une image sans description n'est pas accessible (§46).
+  alt       String
+  position  Int     @default(0)
+
+  @@index([productId, position])
+  @@map("product_image")
+}
+
+// ───────────────────────── Données de marché (§12, CAT-02) ─────────────────────────
+
+/// Relevé de marché d'un produit. Chaque groupe de données porte sa date et sa source :
+/// sans date, l'interface affiche l'absence de donnée plutôt qu'un chiffre orphelin.
+model ProductMarketData {
+  id        String  @id @default(cuid())
+  productId String  @unique
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  /// Fourchette de prix local réellement constatée, en FCFA.
+  localPriceMinXaf     Int?
+  localPriceMaxXaf     Int?
+  localPriceObservedAt DateTime?
+  /// D'où vient le relevé : marché, boutique, plateforme locale, équipe terrain.
+  localPriceSource     String?
+  localPriceProvenance DataProvenance @default(VERIFIED)
+
+  /// Appréciation qualitative du marché, datée elle aussi.
+  demand               MarketLevel?
+  competition          MarketLevel?
+  risk                 RiskLevel?
+  transportEase        TransportEase?
+  /// Capital jugé nécessaire pour se lancer sur ce produit, en FCFA.
+  capitalRequiredXaf   Int?
+  assessedAt           DateTime?
+  assessmentSource     String?
+  assessmentProvenance DataProvenance @default(ESTIMATE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([demand])
+  @@index([competition])
+  @@index([risk])
+  @@map("product_market_data")
+}

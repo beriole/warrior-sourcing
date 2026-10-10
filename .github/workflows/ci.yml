@@ -1,0 +1,69 @@
+name: Intégration continue
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  # Une nouvelle poussée annule la vérification précédente de la même branche.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verifier:
+    name: Build, types, lint et tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: ws
+          POSTGRES_PASSWORD: ws
+          POSTGRES_DB: warrior_sourcing_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U ws -d warrior_sourcing_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Base éphémère du service ci-dessus : aucune donnée réelle n'entre ici.
+      DATABASE_URL: postgresql://ws:ws@localhost:5432/warrior_sourcing_ci
+      AUTH_SECRET: secret-de-test-uniquement-pour-integration-continue
+      NODE_ENV: test
+      # Aucun envoi réel pendant les tests : les emails sont écrits sur disque.
+      MAIL_OUTBOX_DIR: .mail
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.4.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Installer les dépendances
+        run: pnpm install --frozen-lockfile
+
+      - name: Appliquer les migrations
+        run: pnpm --filter @ws/api exec prisma migrate deploy
+
+      - name: Vérifier le monorepo
+        run: pnpm turbo run build typecheck lint test --concurrency=1
+
+      - name: Tests de bout en bout de l'API
+        run: pnpm --filter @ws/api test:e2e
+
+      - name: Vérifier que le contrat OpenAPI et le client généré sont à jour
+        run: |
+          pnpm generate:api
+          git diff --exit-code -- apps/api/openapi.json apps/web/src/api \
+            || (echo "::error::Le contrat ou le client généré n'est pas à jour. Lancez « pnpm generate:api » puis committez." && exit 1)
