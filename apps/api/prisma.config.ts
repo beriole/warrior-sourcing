@@ -24,6 +24,9 @@ export default defineConfig({
      * Prisma 7 a retiré `directUrl` du schéma et de cette configuration : le choix se fait
      * donc ici, à la lecture. En local, où les deux URL sont identiques, rien ne change.
      */
-    url: process.env.DIRECT_URL || env('DATABASE_URL'),
+    url:
+      process.env.DIRECT_URL ||
+      process.env.DATABASE_URL ||
+      'postgresql://postgres:postgres@localhost:5432/postgres',
   },
 });

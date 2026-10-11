@@ -16,6 +16,8 @@ import { fileURLToPath } from 'node:url';
  */
 const root = fileURLToPath(new URL('..', import.meta.url));
 
+process.env.DATABASE_URL ||= 'postgresql://postgres:postgres@localhost:5432/postgres';
+
 try {
   rmSync(new URL('../src/generated/prisma', import.meta.url), {
     recursive: true,
