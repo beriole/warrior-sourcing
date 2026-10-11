@@ -19,6 +19,17 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
+/**
+ * Sur Windows, `vercel` est un script `.cmd`, et Node refuse depuis la version 20 de
+ * l'exécuter sans passer par un shell. D'où `shell: true`.
+ *
+ * Ce n'est pas une porte ouverte : **aucune valeur ne traverse la ligne de commande**.
+ * Seuls le nom de la variable et l'environnement y figurent ; le secret, lui, est écrit
+ * sur l'entrée standard du processus. Une valeur contenant des guillemets, un `&` ou un
+ * `|` ne peut donc rien déclencher.
+ */
+const VERCEL = process.platform === 'win32' ? 'vercel.cmd' : 'vercel';
+
 const [, , cible, ...options] = process.argv;
 const simulation = options.includes('--dry');
 
@@ -95,10 +106,14 @@ for (const nom of LISTES[cible]) {
   console.log(`  ${simulation ? '(simulation) ' : ''}${nom} — ${valeur.length} caractères`);
   if (simulation) continue;
 
+  const cwd = new URL(`../apps/${cible}`, import.meta.url);
+
   for (const environnement of ['production', 'preview']) {
-    execFileSync('vercel', ['env', 'add', nom, environnement, '--force'], {
+    execFileSync(VERCEL, ['env', 'add', nom, environnement, '--force', '--yes'], {
       input: valeur,
       stdio: ['pipe', 'ignore', 'inherit'],
+      shell: process.platform === 'win32',
+      cwd,
     });
   }
   poussees += 1;

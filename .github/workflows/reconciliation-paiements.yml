@@ -1,0 +1,40 @@
+# Rattrapage des paiements non confirmés.
+#
+# Pourquoi ce fichier existe : le plan Hobby de Vercel n'autorise qu'un cron par jour, et
+# une journée est bien trop long pour un paiement Mobile Money. Ce rappel toutes les cinq
+# minutes vient donc d'ici, gratuitement.
+#
+# Ce n'est pas le chemin principal : un paiement se confirme d'abord par le webhook Fapshi,
+# et pendant que le client regarde sa page, par la consultation d'état. Ceci rattrape les
+# cas où les deux ont échoué — webhook perdu, page fermée trop tôt.
+#
+# Deux secrets à définir dans le dépôt (Settings → Secrets and variables → Actions) :
+#   API_URL      l'adresse publique de l'API, sans barre oblique finale
+#   CRON_SECRET  la même valeur que la variable du même nom sur Vercel
+name: Réconciliation des paiements
+
+on:
+  schedule:
+    # Toutes les cinq minutes. GitHub ne garantit pas l'instant exact et peut retarder
+    # l'exécution quand la file est chargée : c'est un filet, pas une horloge.
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  reconcilier:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Appeler la réconciliation
+        run: |
+          if [ -z "${{ secrets.API_URL }}" ] || [ -z "${{ secrets.CRON_SECRET }}" ]; then
+            echo "API_URL ou CRON_SECRET absent : rien à faire."
+            exit 0
+          fi
+          code=$(curl -s -o reponse.json -w '%{http_code}' --max-time 60 \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.API_URL }}/v1/payments/reconciliation-planifiee")
+          echo "HTTP $code"
+          cat reponse.json
+          # Un échec doit se voir : une réconciliation silencieusement cassée laisserait
+          # des paiements en attente sans que personne ne s'en aperçoive.
+          [ "$code" = "200" ]
