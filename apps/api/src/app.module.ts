@@ -1,7 +1,5 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AiModule } from './ai/ai.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { CalculatorController } from './calculator/calculator.controller.js';
@@ -28,8 +26,6 @@ import { PrismaModule } from './prisma/prisma.module.js';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
-    // Limitation de débit (§41). En production multi-instance : stockage Redis.
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     PrismaModule,
     AuthModule,
     MailModule.register(process.env.NODE_ENV === 'production'),
@@ -49,6 +45,5 @@ import { PrismaModule } from './prisma/prisma.module.js';
     AiModule,
   ],
   controllers: [HealthController, CalculatorController, OnboardingController, DashboardController],
-  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
-export class AppModule {}
+export class AppModule { }
