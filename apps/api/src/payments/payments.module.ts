@@ -27,6 +27,15 @@ function buildProvider(config: ConfigService<Env, true>): PaymentProvider {
   const apiKey = sandbox ? (get('FAPSHI_API_KEY_SANDBOX') ?? get('FAPSHI_API_KEY')) : get('FAPSHI_API_KEY');
 
   if (!baseUrl || !apiUser || !apiKey) {
+    // En production, le repli silencieux est le pire des comportements : l'encaissement
+    // « réussit », l'abonnement s'active, et aucun franc n'a bougé. Personne ne s'en
+    // aperçoit avant de regarder le compte Fapshi. Mieux vaut que l'API refuse de démarrer.
+    if (get('NODE_ENV') === 'production') {
+      throw new Error(
+        'Clés Fapshi absentes en production (FAPSHI_BASE_URL, FAPSHI_API_USER, FAPSHI_API_KEY). ' +
+          'L’API refuse de démarrer plutôt que de simuler des encaissements.',
+      );
+    }
     logger.warn('Clés Fapshi absentes : agrégateur de test en mémoire. Aucun paiement réel ne sera lancé.');
     return new FakePaymentProvider();
   }

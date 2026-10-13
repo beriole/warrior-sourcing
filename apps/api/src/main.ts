@@ -18,7 +18,10 @@ async function bootstrap() {
 
   app.use((helmet as unknown as () => any)());
   app.enableCors({
-    origin: [config.get('WEB_ORIGIN', { infer: true }), config.get('ADMIN_ORIGIN', { infer: true })],
+    origin: [
+      ...config.get('WEB_ORIGIN', { infer: true }),
+      ...config.get('ADMIN_ORIGIN', { infer: true }),
+    ],
     credentials: true,
   });
 

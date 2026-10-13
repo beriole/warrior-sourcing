@@ -134,4 +134,17 @@ export type LandedCostResponse = z.infer<typeof LandedCostResponseSchema>;
 export const HealthResponseSchema = z.object({
   status: z.string(),
   database: z.string(),
+  /**
+   * Moyen d'envoi des emails réellement retenu au démarrage.
+   *
+   * `fichier` veut dire « écrits sur le disque » : en production, c'est-à-dire perdus.
+   * Sans cette ligne, un envoi manquant ne se diagnostique qu'en lisant les journaux de
+   * la fonction, et seulement si on sait quel avertissement chercher.
+   */
+  email: z.enum(['resend', 'smtp', 'fichier']),
+  /**
+   * Agrégateur de paiement réellement branché. `simulation` ne doit jamais apparaître en
+   * production : il voudrait dire que les encaissements réussissent sans qu'un franc bouge.
+   */
+  paiements: z.string(),
 });

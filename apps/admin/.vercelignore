@@ -1,0 +1,25 @@
+# Ce qui ne doit jamais être téléversé vers Vercel.
+#
+# Sans ce fichier, un déploiement depuis la racine du monorepo envoie `node_modules` et les
+# dossiers de construction : 1,4 Go, plusieurs minutes de téléversement, et aucun bénéfice —
+# Vercel réinstalle et reconstruit de toute façon.
+
+node_modules
+.turbo
+.git
+
+# Sorties de construction, refaites sur le serveur.
+dist
+.next
+out
+apps/api/.seed
+apps/api/src/generated
+
+# Local, et sans objet en production.
+.mail
+*.log
+coverage
+*.tsbuildinfo
+
+# Captures et scripts de vérification visuelle.
+.preview

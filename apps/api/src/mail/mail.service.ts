@@ -38,12 +38,20 @@ export type SendEmailResult = {
 export class MailService {
   private readonly logger = new Logger(MailService.name);
   private readonly transport: EmailTransport;
+  /** Moyen d'envoi retenu, exposé par /v1/health. */
+  readonly moyen: 'resend' | 'smtp' | 'fichier';
 
   constructor(
     private readonly config: ConfigService<Env, true>,
     private readonly prisma: PrismaService,
   ) {
     this.transport = this.pickTransport();
+    this.moyen =
+      this.transport instanceof ResendTransport
+        ? 'resend'
+        : this.transport instanceof SmtpTransport
+          ? 'smtp'
+          : 'fichier';
   }
 
   /**

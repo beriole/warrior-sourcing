@@ -33,7 +33,10 @@ export function createAuth(config: ConfigService<Env, true>, prisma: PrismaServi
     basePath: AUTH_BASE_PATH,
     secret: config.get('AUTH_SECRET', { infer: true }),
     database: prismaAdapter(prisma, { provider: 'postgresql' }),
-    trustedOrigins: [config.get('WEB_ORIGIN', { infer: true }), config.get('ADMIN_ORIGIN', { infer: true })],
+    trustedOrigins: [
+      ...config.get('WEB_ORIGIN', { infer: true }),
+      ...config.get('ADMIN_ORIGIN', { infer: true }),
+    ],
 
     /** Réservé à l'équipe interne : les clients se connectent par code email. */
     emailAndPassword: {

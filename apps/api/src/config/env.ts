@@ -13,14 +13,51 @@ const optionalValue = (schema: z.ZodType<string> = z.string().min(1)) =>
     .optional()
     .transform((value) => (value ? value : undefined));
 
+/**
+ * Liste blanche d'origines : une adresse, ou plusieurs séparées par des virgules.
+ *
+ * Vercel attribue **deux** adresses au même déploiement — `projet.vercel.app` et
+ * `projet-equipe.vercel.app`. Avec une seule origine autorisée, la moitié des visiteurs
+ * voit chacune de ses requêtes refusée par le navigateur : connexion impossible,
+ * simulation impossible à enregistrer, et **aucune trace côté serveur**, puisque c'est le
+ * navigateur qui bloque. D'où la liste.
+ *
+ * La barre oblique finale est retirée : une origine HTTP n'en porte pas, et
+ * `https://site.app/` ne correspondrait jamais à l'en-tête `Origin` envoyé.
+ */
+const originList = (defaut: string) =>
+  z
+    .string()
+    .default(defaut)
+    .transform((value, ctx) => {
+      const origines = value
+        .split(',')
+        .map((o) => o.trim().replace(/\/+$/, ''))
+        .filter(Boolean);
+
+      if (origines.length === 0) {
+        ctx.addIssue({ code: 'custom', message: 'Au moins une origine est attendue.' });
+        return z.NEVER;
+      }
+
+      for (const origine of origines) {
+        if (!z.url().safeParse(origine).success) {
+          ctx.addIssue({ code: 'custom', message: `Origine invalide : ${origine}` });
+          return z.NEVER;
+        }
+      }
+
+      return origines;
+    });
+
 /** Variables d'environnement validées au démarrage : l'API refuse de démarrer si une valeur manque. */
 export const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(4000),
   DATABASE_URL: z.url(),
   REDIS_URL: optionalValue(z.url()),
-  WEB_ORIGIN: z.url().default('http://localhost:3000'),
-  ADMIN_ORIGIN: z.url().default('http://localhost:3001'),
+  WEB_ORIGIN: originList('http://localhost:3000'),
+  ADMIN_ORIGIN: originList('http://localhost:3001'),
 
   // ── Authentification ──
   /** URL publique de l'API : base des liens d'authentification. */

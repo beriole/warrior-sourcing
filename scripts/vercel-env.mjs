@@ -46,12 +46,21 @@ const LISTES = {
     'AUTH_COOKIE_SAMESITE',
     'MAIL_FROM',
     'MAIL_SUPPORT_ADDRESS',
+    'MAIL_REPLY_TO',
     'RESEND_API_KEY',
+    // Les noms attendus par `MailService.pickTransport` : l'utilisateur vient de
+    // `SMTP_USER` ou `EMAIL`, le mot de passe de `PASS_EMAIL` ou `EMAIL_PASSWORD`.
+    // Pousser `EMAIL_USER` seul ne sert à rien — le service ne le lit jamais, et il
+    // retombe silencieusement sur l'écriture sur disque. En production, « écrit sur
+    // disque » veut dire « perdu ».
     'SMTP_HOST',
     'SMTP_PORT',
-    'EMAIL_USER',
+    'SMTP_USER',
+    'EMAIL',
+    'PASS_EMAIL',
     'EMAIL_PASSWORD',
     'EMAIL_SENDER_NAME',
+    'EMAIL_REPLY_TO',
     'FAPSHI_ENV',
     'FAPSHI_BASE_URL',
     'FAPSHI_API_USER',

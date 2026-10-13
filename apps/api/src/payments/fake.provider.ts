@@ -15,7 +15,7 @@ import { FapshiProvider } from './fapshi.provider.js';
  * seul le transport change. Les tests font avancer une transaction avec `setStatus`.
  */
 export class FakePaymentProvider implements PaymentProvider {
-  readonly name = 'fake';
+  readonly name = 'simulation';
   readonly webhookSecret = 'secret-de-test';
 
   private counter = 0;
