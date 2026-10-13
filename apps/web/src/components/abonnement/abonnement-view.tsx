@@ -14,6 +14,7 @@ import {
 import { Badge, Button, Card, ConditionsPromotion, Entree, Prix, Skeleton } from '@ws/ui';
 import { Check, RefreshCw, Tag } from 'lucide-react';
 import Link from 'next/link';
+import { aMettreEnAvant, CarteOffre } from './carte-offre';
 import { useState } from 'react';
 import { ChampsIdentite, ChampTelephone, ChoixOperateur } from '@/components/paiement/champs';
 import { SuiviPaiement, type Lancement } from '@/components/paiement/suivi';
@@ -62,7 +63,7 @@ export function AbonnementView() {
     return (
       <div className="mx-auto grid max-w-5xl gap-4 px-4 py-6 md:px-6">
         <Skeleton className="h-10 w-1/2" />
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-5 md:grid-cols-3">
           {Array.from({ length: 3 }).map((_, index) => (
             <Skeleton key={index} className="h-80 w-full rounded-lg" />
           ))}
@@ -91,6 +92,9 @@ export function AbonnementView() {
   const mine = data.mine;
   const connecte = mine !== null;
   const offreChoisie = data.plans.find((plan) => plan.slug === choisie) ?? null;
+  // Même règle que sur l'accueil, et au même endroit : les deux écrans doivent recommander
+  // la même offre, sinon le visiteur voit la plateforme se contredire en un clic.
+  const enAvant = aMettreEnAvant(data.plans.filter((plan) => plan.active));
 
   return (
     <div className="mx-auto grid max-w-5xl gap-5 px-4 py-6 md:px-6 md:py-8">
@@ -152,13 +156,15 @@ export function AbonnementView() {
         </p>
       )}
 
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-5 md:grid-cols-3">
         {data.plans.map((plan) => (
           <OffreCarte
             key={plan.id}
             plan={plan}
             actuelle={mine?.planSlug === plan.slug && (mine?.subscription?.current ?? false)}
             choisie={choisie === plan.slug}
+            enAvant={plan.id === enAvant}
+            libelleEnAvant="Le plus complet"
             connecte={connecte}
             onChoisir={() => {
               setChoisie(plan.slug);
@@ -191,68 +197,61 @@ export function AbonnementView() {
   );
 }
 
+/**
+ * Carte d'offre de la page d'abonnement : la carte partagée, avec les actions d'ici.
+ *
+ * L'offre déjà souscrite montre un bouton éteint plutôt que de disparaître — on doit
+ * pouvoir comparer ce qu'on a avec ce qu'on pourrait prendre.
+ */
 function OffreCarte({
   plan,
   actuelle,
   choisie,
   connecte,
+  libelleEnAvant,
+  enAvant,
   onChoisir,
 }: {
   plan: SubscriptionPlan;
   actuelle: boolean;
   choisie: boolean;
   connecte: boolean;
+  libelleEnAvant: string;
+  enAvant: boolean;
   onChoisir: () => void;
 }) {
   return (
-    <Card className={`flex h-full flex-col gap-3 ${choisie ? 'border-primary' : ''}`}>
-      <div>
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="font-display text-lg font-bold">{plan.name}</h2>
-          {actuelle && <Badge tone="success">Votre offre</Badge>}
-        </div>
-        <p className="mt-1 text-sm text-muted-foreground">{plan.tagline}</p>
-      </div>
-
-      <div>
-        <Prix priced={plan.priced} className="text-xl" />
-        {plan.priceXaf > 0 && <span className="ml-1 text-xs text-muted-foreground">{plan.periodSuffix}</span>}
-        <ConditionsPromotion priced={plan.priced} className="mt-1 block" />
-      </div>
-
-      <ul className="grid flex-1 gap-1.5 text-sm">
-        {plan.highlights.map((avantage) => (
-          <li key={avantage} className="flex items-start gap-2">
-            <Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
-            {avantage}
-          </li>
-        ))}
-      </ul>
-
-      {plan.rights.length > 0 && (
-        <p className="text-xs text-muted-foreground">
-          Droits ouverts : {plan.rights.map((droit) => SUBSCRIPTION_RIGHT_LABELS[droit].label).join(', ')}.
-        </p>
-      )}
-
-      {actuelle ? (
-        <Button variant="outline" disabled>
-          Offre en cours
-        </Button>
-      ) : plan.priceXaf === 0 ? (
-        // L'offre gratuite est l'offre par défaut : il n'y a rien à souscrire. Proposer
-        // de l'« activer » ferait croire à une action utile ; créer un compte, si.
-        connecte ? (
-          <p className="text-sm text-muted-foreground">Rien à souscrire : c’est l’offre par défaut.</p>
-        ) : (
-          <Button asChild variant="outline">
-            <Link href="/connexion">Créer mon compte</Link>
-          </Button>
-        )
-      ) : (
-        <Button onClick={onChoisir}>Choisir {plan.name}</Button>
-      )}
-    </Card>
+    <div className={choisie ? 'rounded-lg ring-2 ring-primary ring-offset-2 ring-offset-background' : undefined}>
+      <CarteOffre
+        plan={plan}
+        enAvant={enAvant}
+        libelleEnAvant={libelleEnAvant}
+        badge={actuelle ? <Badge tone="success">Votre offre</Badge> : undefined}
+        action={
+          actuelle ? (
+            <Button block variant="outline" disabled>
+              Offre en cours
+            </Button>
+          ) : plan.priceXaf === 0 ? (
+            // L'offre gratuite est l'offre par défaut : il n'y a rien à souscrire. Proposer
+            // de l'« activer » ferait croire à une action utile ; créer un compte, si.
+            connecte ? (
+              <p className="text-center text-sm text-muted-foreground">
+                Rien à souscrire : c’est l’offre par défaut.
+              </p>
+            ) : (
+              <Button asChild block variant="outline">
+                <Link href="/connexion">Créer mon compte</Link>
+              </Button>
+            )
+          ) : (
+            <Button block variant={enAvant ? 'gold' : 'primary'} onClick={onChoisir}>
+              Choisir {plan.name}
+            </Button>
+          )
+        }
+      />
+    </div>
   );
 }
 

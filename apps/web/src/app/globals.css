@@ -13,6 +13,20 @@
 @layer base {
   body {
     font-family: var(--font-sans);
+
+    /*
+     * Pas de défilement latéral, jamais.
+     *
+     * Les décors de l'accueil — le grand mot flottant, les photos en dérive — débordent
+     * volontairement de quelques dizaines de pixels : c'est ce qui leur donne leur
+     * mouvement. Sur un écran de 320 px, ce débordement devenait une barre de défilement
+     * horizontale, et toute la page glissait de côté au premier geste de pouce.
+     *
+     * `clip` et non `hidden` : `hidden` fait de l'élément un conteneur de défilement, ce
+     * qui désactive `position: sticky` chez tous ses descendants — le programme d'une
+     * formation, entre autres, cesserait de suivre la lecture.
+     */
+    overflow-x: clip;
   }
 }
 

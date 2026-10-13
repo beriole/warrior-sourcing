@@ -16,31 +16,42 @@ export function Prix({
   priced,
   className,
   tailleEtiquette = 'normale',
+  taille = 'normale',
 }: {
   priced: Priced;
   className?: string;
   /** « petite » pour une carte dense, « normale » pour une fiche. */
   tailleEtiquette?: 'petite' | 'normale';
+  /**
+   * « geante » pour une grille d'offres : seul le **montant à payer** grossit.
+   *
+   * Le prix barré et l'étiquette de remise gardent leur taille. Agrandir l'ensemble en
+   * posant une classe de texte sur le composant depuis l'extérieur les grossirait aussi,
+   * et un prix d'avant écrit aussi gros que le prix du jour se lit mal — on ne saurait
+   * plus lequel des deux on paie.
+   */
+  taille?: 'normale' | 'geante';
 }) {
   const etiquette = discountLabel(priced);
+  const montant = taille === 'geante' ? 'font-display text-4xl font-bold tracking-tight' : 'font-semibold';
 
   if (priced.free && priced.originalXaf === 0) {
-    return <span className={cn('font-semibold', className)}>Gratuit</span>;
+    return <span className={cn(montant, className)}>Gratuit</span>;
   }
 
   if (!etiquette) {
-    return <Money className={cn('font-semibold', className)} value={xaf(priced.finalXaf)} />;
+    return <Money className={cn(montant, className)} value={xaf(priced.finalXaf)} />;
   }
 
   return (
     <span className={cn('inline-flex flex-wrap items-baseline gap-x-2 gap-y-0.5', className)}>
       {priced.free ? (
-        <span className="font-semibold text-success">Offert</span>
+        <span className={cn(montant, 'text-success')}>Offert</span>
       ) : (
-        <Money className="font-semibold" value={xaf(priced.finalXaf)} />
+        <Money className={montant} value={xaf(priced.finalXaf)} />
       )}
       {/* Le prix d'avant, annoncé comme tel aux lecteurs d'écran. */}
-      <s className="text-muted-foreground">
+      <s className="text-sm font-normal text-muted-foreground">
         <span className="sr-only">Prix habituel : </span>
         <Money value={xaf(priced.originalXaf)} />
       </s>
