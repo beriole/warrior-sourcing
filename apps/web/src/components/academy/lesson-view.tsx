@@ -89,8 +89,13 @@ function LessonContent({ courseSlug, data }: { courseSlug: string; data: LessonR
     );
   }
 
+  // Où l'on en est dans la formation, en clair. Sans ce repère, « leçon suivante » est le
+  // seul indice de position, et on ne sait jamais combien il en reste.
+  const toutes = data.chapters.flatMap((chapitre) => chapitre.lessons);
+  const rang = toutes.findIndex((item) => item.slug === lesson.slug) + 1;
+
   return (
-    <div className="mx-auto grid max-w-3xl gap-5 px-4 py-6 md:px-6 md:py-8">
+    <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 md:py-8">
       <Link
         href={`/academy/${courseSlug}`}
         className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground"
@@ -99,180 +104,256 @@ function LessonContent({ courseSlug, data }: { courseSlug: string; data: LessonR
         {data.courseTitle}
       </Link>
 
-      <header>
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{data.chapterTitle}</p>
-        <h1 className="mt-0.5 font-display text-xl font-bold tracking-tight">{lesson.title}</h1>
-        <p className="figures mt-1 text-xs text-muted-foreground">
-          {formatDuration(lesson.durationMinutes)}
-          {status === 'COMPLETED' && ' — terminée'}
-        </p>
-        {lesson.summary && <p className="mt-2 text-sm text-muted-foreground">{lesson.summary}</p>}
-      </header>
+      {/*
+        Deux colonnes sur grand écran, le programme à droite et collant.
+        Il était auparavant tout en bas, après le quiz et les notes : pour atteindre la
+        leçon suivante autrement qu'en suivant le bouton, il fallait dérouler toute la page.
+        Sur petit écran la colonne de droite repasse dessous — c'est l'ordre d'avant, et il
+        n'y a pas la place pour mieux.
+      */}
+      <div className="mt-4 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="grid min-w-0 gap-5">
+          <header>
+            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              {data.chapterTitle}
+            </p>
+            <h1 className="mt-0.5 font-display text-xl font-bold tracking-tight">{lesson.title}</h1>
+            <p className="figures mt-1 text-xs text-muted-foreground">
+              Leçon {rang} sur {data.progress.totalLessons} — {formatDuration(lesson.durationMinutes)}
+              {status === 'COMPLETED' && ' — terminée'}
+            </p>
+            {lesson.summary && <p className="mt-2 text-sm text-muted-foreground">{lesson.summary}</p>}
+          </header>
 
-      <Player lesson={lesson} onProgress={record} />
+          <Player lesson={lesson} onProgress={record} />
 
-      <Card>
-        <h2 className="font-semibold">Avancement de la formation</h2>
-        <Progress className="mt-3" value={percent} aria-label={`Avancement : ${percent} %`} />
-        <p className="figures mt-1 text-xs text-muted-foreground">
-          {percent} % du programme — {data.progress.completedLessons} leçon
-          {data.progress.completedLessons > 1 ? 's' : ''} terminée
-          {data.progress.completedLessons > 1 ? 's' : ''} sur {data.progress.totalLessons}
-        </p>
-
-        {status !== 'COMPLETED' && (
-          <Button
-            className="mt-4"
-            variant="outline"
-            size="sm"
-            loading={progress.isPending}
-            onClick={() => record(lesson.watchedSeconds, true)}
-          >
-            <CheckCircle2 aria-hidden />
-            Marquer cette leçon comme terminée
-          </Button>
-        )}
-        {progress.isError && (
-          <p className="mt-2 text-xs text-danger">
-            {progress.error instanceof Error
-              ? progress.error.message
-              : 'Votre avancement n’a pas pu être enregistré.'}
-          </p>
-        )}
-      </Card>
-
-      {lesson.documents.length > 0 && (
-        <Card>
-          <h2 className="font-semibold">Documents de la leçon</h2>
-          <ul className="mt-3 divide-y divide-border">
-            {lesson.documents.map((document) => {
-              const size = formatFileSize(document.sizeBytes);
-              return (
-                <li key={document.id}>
-                  <a
-                    href={document.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    download
-                    className="flex min-h-11 items-center gap-3 py-3 text-sm hover:text-imperial-hover"
-                  >
-                    <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium">{document.title}</span>
-                      <span className="figures block text-xs text-muted-foreground">
-                        {document.fileFormat.toUpperCase()}
-                        {size !== null && ` — ${size}`}
-                      </span>
-                    </span>
-                    <Download className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-        </Card>
-      )}
-
-      <NotesPanel courseSlug={courseSlug} lessonSlug={lesson.slug} initialNotes={lesson.notes} />
-
-      {lesson.quizId && (
-        <section className="grid gap-3">
-          {quizOpen ? (
-            <QuizPanel quizId={lesson.quizId} />
-          ) : (
-            <Card className="flex flex-col items-start">
-              <h2 className="font-semibold">Quiz de fin de chapitre</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Quelques questions pour vérifier ce qui est acquis. Le score est calculé par le serveur et la
-                correction explique chaque réponse.
-              </p>
-              <Button className="mt-4" variant="outline" size="sm" onClick={() => setQuizOpen(true)}>
-                Ouvrir le quiz
+          {/* L'action qui suit le visionnage, juste sous le lecteur : c'est là qu'on la cherche. */}
+          <div className="flex flex-wrap items-center gap-3">
+            {status === 'COMPLETED' ? (
+              <Badge tone="success">
+                <CheckCircle2 aria-hidden />
+                Leçon terminée
+              </Badge>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                loading={progress.isPending}
+                onClick={() => record(lesson.watchedSeconds, true)}
+              >
+                <CheckCircle2 aria-hidden />
+                Marquer cette leçon comme terminée
               </Button>
+            )}
+
+            {data.nextLessonSlug && status === 'COMPLETED' && (
+              <Button size="sm" asChild>
+                <Link href={`/academy/${courseSlug}/${data.nextLessonSlug}`}>
+                  Leçon suivante
+                  <ChevronRight aria-hidden />
+                </Link>
+              </Button>
+            )}
+          </div>
+
+          {progress.isError && (
+            <p className="text-xs text-danger">
+              {progress.error instanceof Error
+                ? progress.error.message
+                : 'Votre avancement n’a pas pu être enregistré.'}
+            </p>
+          )}
+
+          {lesson.documents.length > 0 && (
+            <Card>
+              <h2 className="font-semibold">Documents de la leçon</h2>
+              <ul className="mt-3 divide-y divide-border">
+                {lesson.documents.map((document) => {
+                  const size = formatFileSize(document.sizeBytes);
+                  return (
+                    <li key={document.id}>
+                      <a
+                        href={document.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        download
+                        className="flex min-h-11 items-center gap-3 py-3 text-sm hover:text-imperial-hover"
+                      >
+                        <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-medium">{document.title}</span>
+                          <span className="figures block text-xs text-muted-foreground">
+                            {document.fileFormat.toUpperCase()}
+                            {size !== null && ` — ${size}`}
+                          </span>
+                        </span>
+                        <Download className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
             </Card>
           )}
-        </section>
-      )}
 
-      <nav className="flex items-center justify-between gap-3" aria-label="Navigation dans la formation">
-        {data.previousLessonSlug ? (
-          <Button variant="outline" size="sm" asChild>
-            <Link href={`/academy/${courseSlug}/${data.previousLessonSlug}`}>
-              <ChevronLeft aria-hidden />
-              Leçon précédente
-            </Link>
-          </Button>
-        ) : (
-          <span />
-        )}
-        {data.nextLessonSlug ? (
-          <Button size="sm" asChild>
-            <Link href={`/academy/${courseSlug}/${data.nextLessonSlug}`}>
-              Leçon suivante
-              <ChevronRight aria-hidden />
-            </Link>
-          </Button>
-        ) : (
-          <span />
-        )}
-      </nav>
+          <NotesPanel courseSlug={courseSlug} lessonSlug={lesson.slug} initialNotes={lesson.notes} />
 
-      <section className="grid gap-3">
-        <h2 className="font-display text-lg font-bold">Programme</h2>
-        {data.chapters.map((chapter) => (
-          <Card key={chapter.id} className="p-0">
-            <p className="border-b border-border px-4 py-3 text-sm font-semibold">{chapter.title}</p>
-            <ul className="divide-y divide-border">
-              {chapter.lessons.map((item) => {
-                const current = item.slug === lesson.slug;
-                const row = (
-                  <span className="flex min-h-11 items-center gap-3 px-4 py-3 text-left">
-                    <span className="shrink-0 text-muted-foreground">
-                      {item.locked ? (
-                        <Lock className="size-4" aria-hidden />
-                      ) : item.status === 'COMPLETED' ? (
-                        <CheckCircle2 className="size-4 text-success" aria-hidden />
-                      ) : (
-                        <PlayCircle className="size-4" aria-hidden />
-                      )}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className={`block truncate text-sm ${current ? 'font-semibold' : ''}`}>{item.title}</span>
-                      <span className="figures block text-xs text-muted-foreground">
-                        {formatDuration(item.durationMinutes)}
-                      </span>
-                    </span>
-                    {current && (
-                      <Badge tone="brand" className="shrink-0">
-                        En cours
-                      </Badge>
-                    )}
-                  </span>
-                );
+          {lesson.quizId && (
+            <section className="grid gap-3">
+              {quizOpen ? (
+                <QuizPanel quizId={lesson.quizId} />
+              ) : (
+                <Card className="flex flex-col items-start">
+                  <h2 className="font-semibold">Quiz de fin de chapitre</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Quelques questions pour vérifier ce qui est acquis. Le score est calculé par le serveur et la
+                    correction explique chaque réponse.
+                  </p>
+                  <Button className="mt-4" variant="outline" size="sm" onClick={() => setQuizOpen(true)}>
+                    Ouvrir le quiz
+                  </Button>
+                </Card>
+              )}
+            </section>
+          )}
 
-                return (
-                  <li key={item.id}>
-                    {item.locked ? (
-                      <span className="flex opacity-60" aria-disabled="true">
-                        {row}
-                      </span>
-                    ) : (
-                      <Link
-                        href={`/academy/${courseSlug}/${item.slug}`}
-                        aria-current={current ? 'page' : undefined}
-                        className="flex hover:bg-surface-muted focus-visible:ring-2 focus-visible:ring-imperial focus-visible:outline-none"
-                      >
-                        {row}
-                      </Link>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </Card>
-        ))}
-      </section>
+          <nav
+            className="flex items-center justify-between gap-3 border-t border-border pt-5"
+            aria-label="Navigation dans la formation"
+          >
+            {data.previousLessonSlug ? (
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/academy/${courseSlug}/${data.previousLessonSlug}`}>
+                  <ChevronLeft aria-hidden />
+                  Leçon précédente
+                </Link>
+              </Button>
+            ) : (
+              <span />
+            )}
+            {data.nextLessonSlug ? (
+              <Button size="sm" asChild>
+                <Link href={`/academy/${courseSlug}/${data.nextLessonSlug}`}>
+                  Leçon suivante
+                  <ChevronRight aria-hidden />
+                </Link>
+              </Button>
+            ) : (
+              <span />
+            )}
+          </nav>
+        </div>
+
+        <Programme
+          courseSlug={courseSlug}
+          chapters={data.chapters}
+          lessonSlug={lesson.slug}
+          percent={percent}
+          completed={data.progress.completedLessons}
+          total={data.progress.totalLessons}
+        />
+      </div>
     </div>
+  );
+}
+
+/**
+ * Programme de la formation : avancement en tête, puis chapitres et leçons.
+ *
+ * Collant sur grand écran, avec son propre défilement. Sans hauteur maximale, un programme
+ * de trente leçons dépasse l'écran, et sa partie basse devient inatteignable une fois le
+ * bloc collé.
+ *
+ * La leçon en cours porte un filet vertical et un fond, pas seulement une graisse : sur une
+ * liste longue, un titre en gras se repère mal. Une leçon verrouillée reste visible — savoir
+ * ce qu'on n'a pas encore ouvert fait partie du programme — mais ne mène nulle part.
+ */
+function Programme({
+  courseSlug,
+  chapters,
+  lessonSlug,
+  percent,
+  completed,
+  total,
+}: {
+  courseSlug: string;
+  chapters: LessonResponse['chapters'];
+  lessonSlug: string;
+  percent: number;
+  completed: number;
+  total: number;
+}) {
+  return (
+    <aside className="lg:sticky lg:top-6">
+      <Card className="p-0">
+        <div className="border-b border-border p-4">
+          <h2 className="font-display font-bold">Programme</h2>
+          <Progress className="mt-3" value={percent} aria-label={`Avancement : ${percent} %`} />
+          <p className="figures mt-2 text-xs text-muted-foreground">
+            {completed} leçon{completed > 1 ? 's' : ''} sur {total} — {percent} %
+          </p>
+        </div>
+
+        <div className="lg:max-h-[calc(100dvh-14rem)] lg:overflow-y-auto">
+          {chapters.map((chapter) => (
+            <section key={chapter.id}>
+              <p className="sticky top-0 border-b border-border bg-surface-muted px-4 py-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                {chapter.title}
+              </p>
+              <ul className="divide-y divide-border">
+                {chapter.lessons.map((item) => {
+                  const courante = item.slug === lessonSlug;
+                  const contenu = (
+                    <span
+                      className={`flex min-h-11 items-center gap-3 border-l-2 px-4 py-3 text-left ${
+                        courante ? 'border-imperial bg-imperial-soft/50' : 'border-transparent'
+                      }`}
+                    >
+                      <span className="shrink-0 text-muted-foreground">
+                        {item.locked ? (
+                          <Lock className="size-4" aria-hidden />
+                        ) : item.status === 'COMPLETED' ? (
+                          <CheckCircle2 className="size-4 text-success" aria-hidden />
+                        ) : (
+                          <PlayCircle className="size-4" aria-hidden />
+                        )}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className={`block text-sm leading-snug ${courante ? 'font-semibold' : ''}`}>
+                          {item.title}
+                        </span>
+                        <span className="figures block text-xs text-muted-foreground">
+                          {formatDuration(item.durationMinutes)}
+                          {courante && ' — en cours'}
+                        </span>
+                      </span>
+                    </span>
+                  );
+
+                  return (
+                    <li key={item.id}>
+                      {item.locked ? (
+                        <span className="flex opacity-60" aria-disabled="true">
+                          {contenu}
+                        </span>
+                      ) : (
+                        <Link
+                          href={`/academy/${courseSlug}/${item.slug}`}
+                          aria-current={courante ? 'page' : undefined}
+                          className="flex hover:bg-surface-muted focus-visible:ring-2 focus-visible:ring-imperial focus-visible:outline-none"
+                        >
+                          {contenu}
+                        </Link>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
+        </div>
+      </Card>
+    </aside>
   );
 }
 
