@@ -113,7 +113,7 @@ function Visuel({
 
       {/* Le marque-page vit dans le lien de la carte : il arrête la propagation lui-même. */}
       <span className="absolute top-1 right-1">
-        <FavoriToggle targetType="PRODUCT" targetId={product.id} libelle="ce produit" />
+        <FavoriToggle targetType="PRODUCT" targetId={product.id} libelle="ce produit" className="rounded-full bg-night/40 text-white backdrop-blur-sm hover:bg-night/60" />
       </span>
 
       {marge && (

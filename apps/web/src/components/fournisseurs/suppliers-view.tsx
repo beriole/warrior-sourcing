@@ -323,7 +323,7 @@ function SupplierCard({ supplier }: { supplier: SupplierCardData }) {
         </span>
 
         <span className="absolute top-1 right-1">
-          <FavoriToggle targetType="SUPPLIER" targetId={supplier.id} libelle="ce fournisseur" />
+          <FavoriToggle targetType="SUPPLIER" targetId={supplier.id} libelle="ce fournisseur" className="rounded-full bg-night/40 text-white backdrop-blur-sm hover:bg-night/60" />
         </span>
 
         {supplier.openIncidents > 0 && (

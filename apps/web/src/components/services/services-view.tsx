@@ -218,7 +218,7 @@ function ServiceTuile({ service }: { service: ServiceCardData }) {
       <div className={`relative flex h-28 items-center justify-center bg-gradient-to-br ${teinte}`}>
         <Icone className="size-10 transition-transform duration-500 ease-out group-hover:scale-110" aria-hidden />
         <span className="absolute top-2 right-1">
-          <FavoriToggle targetType="SERVICE" targetId={service.id} libelle="cette prestation" />
+          <FavoriToggle targetType="SERVICE" targetId={service.id} libelle="cette prestation" className="rounded-full bg-night/40 text-white backdrop-blur-sm hover:bg-night/60" />
         </span>
         {service.orderable && (
           <span className="absolute bottom-2 left-2.5">
