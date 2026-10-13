@@ -2,11 +2,17 @@
 
 Trois projets Vercel sur ce dépôt, une base Supabase.
 
-| Projet Vercel | Root Directory | Ce qu'il sert |
-|---|---|---|
-| `warrior-sourcing-web` | `apps/web` | le site public |
-| `warrior-sourcing-admin` | `apps/admin` | le back-office |
-| `warrior-sourcing-api` | `apps/api` | l'API NestJS, en fonction sans serveur |
+| Projet Vercel | Root Directory | Adresse servie | Ce qu'il sert |
+|---|---|---|---|
+| `warrior-sourcing-web` | `apps/web` | `warrior-sourcing-web.vercel.app` | le site public |
+| `warrior-sourcing-admin` | `apps/admin` | `warrior-sourcing-admin.vercel.app` | le back-office |
+| `warrior-sourcing-api` | `apps/api` | `warrior-sourcing-api.vercel.app` | l'API NestJS, en fonction sans serveur |
+
+Chaque projet répond **aussi** sur `<projet>-warrior-tech.vercel.app`. Les deux adresses
+sont bonnes, et c'est précisément ce qui rend le réglage des origines délicat : voir plus bas.
+
+`node scripts/poser-urls.mjs --appliquer` pose les quatre adresses d'un seul geste, dans
+`apps/api/.env` et sur les trois projets. À relancer si une adresse change.
 
 ## L'API sur Vercel : ce qui a dû changer
 
@@ -82,6 +88,75 @@ deux cœurs. `--concurrency=1` et un plafond de tas explicite règlent le cas.
 « Not authorized », ce qui laisse croire à un problème de session alors que la session est
 valide. C'est la limite de constructions parallèles du plan. Déployez-les l'un après
 l'autre.
+
+## Savoir, en une requête, si la production est vraiment branchée
+
+```bash
+curl https://warrior-sourcing-api.vercel.app/v1/health
+```
+
+```json
+{ "status": "ok", "database": "up", "email": "smtp", "paiements": "fapshi" }
+```
+
+Les deux derniers champs existent parce que leurs pannes sont **silencieuses** :
+
+| Valeur | Ce qu'elle veut dire |
+|---|---|
+| `email: "fichier"` | aucun moyen d'envoi configuré. Les courriels sont écrits sur le disque — en sans-serveur, le disque est en lecture seule : ils sont perdus, et la table `email_log` porte `ENOENT … mkdir '/var/task/.mail'`. |
+| `email: "smtp"` ou `"resend"` | les envois partent réellement. |
+| `paiements: "simulation"` | impossible en production : l'API refuse désormais de démarrer sans clés Fapshi, parce qu'un encaissement simulé « réussit », active l'abonnement, et ne déplace aucun franc. |
+| `paiements: "fapshi"` | l'agrégateur réel est branché. |
+
+`MailService` lit l'utilisateur SMTP dans `SMTP_USER` **ou** `EMAIL`, et le mot de passe
+dans `PASS_EMAIL` **ou** `EMAIL_PASSWORD`. Pousser `EMAIL_USER` ne sert à rien : ce nom
+n'est lu nulle part.
+
+## Les origines : le réglage qui fait tout échouer sans rien journaliser
+
+`API_URL` est le `baseURL` de Better Auth. Pointée sur une adresse autre que celle qui
+répond, elle fait émettre les cookies de session pour un hôte qui ne reçoit jamais de
+requête : la session ne tient jamais, et avec elle rien de ce qui en dépend —
+enregistrer une simulation, acheter une formation, lancer un paiement.
+
+`WEB_ORIGIN` et `ADMIN_ORIGIN` acceptent **plusieurs adresses séparées par des virgules**,
+et il faut s'en servir : Vercel en attribue deux par projet, et le visiteur arrivé par
+celle qui n'est pas autorisée voit chacune de ses requêtes refusée **par son navigateur**.
+Le serveur n'en sait rien. Il n'y a ni erreur, ni journal, ni message : seulement une
+application qui ne répond pas.
+
+Pour vérifier qu'une origine est bien acceptée :
+
+```bash
+curl -s -o /dev/null -D - -X OPTIONS https://warrior-sourcing-api.vercel.app/v1/offres/souscription   -H 'Origin: https://warrior-sourcing-web.vercel.app'   -H 'Access-Control-Request-Method: POST' | grep -i allow-origin
+```
+
+Pas d'en-tête `Access-Control-Allow-Origin` en retour : cette adresse est bloquée.
+
+## Région d'exécution
+
+Les trois `vercel.json` portent `"regions": ["fra1"]`. Sans ce réglage, Vercel place les
+fonctions à Washington (`X-Vercel-Id: fra1::iad1::…`) alors que Supabase est à Francfort :
+chaque requête traverse l'Atlantique deux fois. Mesuré depuis le Cameroun, sur une instance
+tiède :
+
+| | Washington | Francfort |
+|---|---|---|
+| `/v1/health`, temps serveur | 0,89 s | 0,42 s |
+| page d'accueil, premier octet | 1,88 s | 0,90 s |
+
+Le `X-Vercel-Id` est la seule façon de le vérifier : `fra1::fra1::…` est correct,
+`fra1::iad1::…` veut dire que la fonction est restée aux États-Unis.
+
+## Le téléversement : 1,4 Go ou 5 Ko
+
+Avec un *Root Directory* réglé côté Vercel, la CLI cherche `.vercelignore` **dans ce
+dossier**, pas à la racine du dépôt. Celui de la racine ne suffit donc pas : il est recopié
+dans `apps/api`, `apps/web` et `apps/admin`, et les trois copies doivent rester identiques.
+
+Sans eux, le dépôt part en entier — 1,4 Go — et le déploiement échoue sur
+`File size limit exceeded (100 MB)` : les archives de `.turbo/cache` dépassent la limite.
+Le message ne nomme pas le fichier.
 
 ## 1. Supabase
 
@@ -216,6 +291,27 @@ update "user" set role = 'SUPER_ADMIN' where email = 'votre@adresse';
 
 Puis, depuis le back-office, saisissez vos transitaires et leurs grilles tarifaires : sans
 eux, le calculateur n'a aucun tarif et l'assistant d'adresse n'a aucune adresse à proposer.
+
+## Vider la base de ses données de démonstration
+
+Les seeds écrivent des lignes fictives, toutes préfixées « DÉMO — ». En production elles
+sont nuisibles, et pas seulement inutiles : l'entrepôt du transitaire de démonstration est
+une adresse qui n'existe pas, et quelqu'un pourrait y expédier des marchandises.
+
+```bash
+node scripts/purger-demonstration.mjs             # n'affiche que ce qui partirait
+node scripts/purger-demonstration.mjs --appliquer # supprime
+```
+
+Le script ne touche que les lignes préfixées, et laisse hors de portée les offres
+d'abonnement (Gratuit, Pro, Business sont la structure commerciale, pas un jeu d'essai),
+les paiements, et tout compte autre que les deux `demo-*@warrior-sourcing.cm`.
+
+**Après la purge, le catalogue est vide.** Il n'y a pas de contournement : formations,
+fournisseurs, produits, prestations, transitaires et grilles tarifaires se saisissent depuis
+le back-office. Le site affiche alors ses états « rien à montrer », qui sont honnêtes ; ce
+qui ne l'est pas, c'est de laisser quelqu'un payer 20 000 FCFA pour une formation
+« DÉMO — » sans vidéo.
 
 ## Ce qui n'est toujours pas fait
 
