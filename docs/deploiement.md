@@ -18,12 +18,30 @@ processus ne vit pas entre deux requêtes : l'intervalle ne se déclenche jamais
 validé sur le téléphone serait resté « en attente » jusqu'à ce que quelqu'un ouvre la page
 — et un webhook perdu n'aurait jamais été rattrapé.
 
-Le déclencheur vient donc désormais de l'extérieur : un **cron Vercel**, déclaré dans
-`apps/api/vercel.json`, appelle chaque minute `GET /v1/payments/reconciliation-planifiee`.
-La route est protégée par `CRON_SECRET` et refuse tout le monde si le secret est absent.
+Le déclencheur vient donc de l'extérieur. Deux, en réalité, parce qu'un seul ne suffit pas :
 
-Effet de bord utile : ce rappel chaque minute garde une instance chaude. Le premier visiteur
-d'une heure creuse ne paie donc pas, en général, le démarrage à froid.
+| Déclencheur | Rythme | Pourquoi |
+|---|---|---|
+| Cron Vercel (`apps/api/vercel.json`) | une fois par jour, à 3 h | **Le plan Hobby n'autorise pas mieux.** Toutes les minutes est refusé au déploiement, avec un message explicite. |
+| Workflow GitHub (`.github/workflows/reconciliation-paiements.yml`) | toutes les cinq minutes | Gratuit, et c'est lui qui fait le vrai travail. GitHub ne garantit pas l'instant exact : c'est un filet, pas une horloge. |
+
+Les deux appellent `GET /v1/payments/reconciliation-planifiee`, protégée par `CRON_SECRET`
+et qui refuse tout le monde si le secret est absent.
+
+Le workflow GitHub a besoin de deux secrets dans le dépôt
+(*Settings → Secrets and variables → Actions*) :
+
+| Secret | Valeur |
+|---|---|
+| `API_URL` | l'adresse publique de l'API, sans barre oblique finale |
+| `CRON_SECRET` | la même valeur que la variable du même nom sur Vercel |
+
+Sans eux, le workflow s'arrête proprement en disant qu'il n'a rien à faire.
+
+**Ceci n'est pas le chemin principal.** Un paiement se confirme d'abord par le webhook
+Fapshi, et pendant que le client regarde sa page, par la consultation d'état. La
+réconciliation rattrape les cas où les deux ont échoué : webhook perdu, page fermée trop
+tôt. Sur le plan Pro, un cron par minute remplacerait avantageusement le workflow GitHub.
 
 **L'application est construite une fois et retenue.** Monter NestJS — modules, Prisma,
 Better Auth — coûte une à trois secondes. `apps/api/src/vercel.ts` mémorise la promesse de
@@ -45,6 +63,25 @@ comme NestJS l'attend.
 - **La limitation de débit compte par instance.** `ThrottlerModule` garde son compteur en
   mémoire : avec dix instances, la limite réelle est multipliée par dix. Il faut un
   stockage Redis pour que le plafond annoncé soit le plafond appliqué.
+
+### Trois obstacles à la construction, et comment ils se manifestent
+
+Aucun des trois ne dit clairement ce qu'il est. Ils sont notés ici pour que la prochaine
+personne ne les redécouvre pas.
+
+**Mode interactif de Turborepo.** `turbo.json` était en `ui: "tui"`. Sur un serveur de
+construction, il n'y a pas de terminal à piloter : la tâche reste suspendue sans rien
+écrire. La trace s'arrête net après l'installation et ne reprend jamais — ça ressemble à
+une construction lente, et c'en est une qui ne finira pas. D'où `--ui=stream`.
+
+**Mémoire du conteneur.** La construction était tuée avec le code **137**, c'est-à-dire
+tuée par le système faute de mémoire. Turborepo compilait trois paquets en parallèle sur
+deux cœurs. `--concurrency=1` et un plafond de tas explicite règlent le cas.
+
+**Constructions simultanées.** Lancer les trois déploiements en même temps renvoie
+« Not authorized », ce qui laisse croire à un problème de session alors que la session est
+valide. C'est la limite de constructions parallèles du plan. Déployez-les l'un après
+l'autre.
 
 ## 1. Supabase
 
