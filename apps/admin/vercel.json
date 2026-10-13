@@ -3,5 +3,8 @@
   "framework": "nextjs",
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
   "buildCommand": "cd ../.. && NODE_OPTIONS=--max-old-space-size=3072 pnpm turbo run build --filter=@ws/admin --ui=stream --concurrency=1",
-  "outputDirectory": ".next"
+  "outputDirectory": ".next",
+  "regions": [
+    "fra1"
+  ]
 }
