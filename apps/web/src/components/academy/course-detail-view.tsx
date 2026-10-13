@@ -67,6 +67,19 @@ export function CourseDetailView({ slug }: { slug: string }) {
         Academy
       </Link>
 
+      {/*
+        La couverture, en bandeau.
+        La carte du catalogue montre une photographie ; sans elle ici, on clique sur une
+        image et on atterrit sur une page de texte. Le lien entre les deux écrans se perd,
+        et la fiche paraît moins finie que la liste qui y mène.
+      */}
+      {course.coverUrl && (
+        <div className="relative aspect-21/9 overflow-hidden rounded-lg bg-surface-muted">
+          {/* eslint-disable-next-line @next/next/no-img-element -- source locale, distante ou intégrée */}
+          <img src={course.coverUrl} alt="" className="size-full object-cover" />
+        </div>
+      )}
+
       <header className="grid gap-3">
         <div className="flex flex-wrap items-center gap-1.5">
           <Badge tone="night">{course.levelLabel}</Badge>
