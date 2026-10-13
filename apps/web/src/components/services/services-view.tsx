@@ -2,7 +2,23 @@
 
 import { SERVICE_CATEGORY_LABELS, type ServiceCard as ServiceCardData } from '@ws/contracts';
 import { Badge, Button, Card, GrilleAnimee, Money, Skeleton } from '@ws/ui';
-import { ArrowRight, Clock, RefreshCw, Search } from 'lucide-react';
+import {
+  ArrowRight,
+  BadgeCheck,
+  Boxes,
+  Clock,
+  CreditCard,
+  Handshake,
+  type LucideIcon,
+  MessageCircle,
+  Package,
+  RefreshCw,
+  Search,
+  ScanSearch,
+  Ship,
+  ShoppingCart,
+  Sparkles,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { FavoriToggle } from '@/components/favoris/favoris-client';
@@ -159,61 +175,87 @@ export function ServicesView() {
   );
 }
 
+/**
+ * Chaque catégorie a son pictogramme et sa teinte.
+ *
+ * Une prestation ne se photographie pas : « vérification de fournisseur » n'a pas d'image,
+ * et en coller une de banque d'images reviendrait à illustrer un service par une scène qui
+ * n'a jamais eu lieu. Un bandeau coloré avec un signe clair fait le travail que fait une
+ * photo sur un produit : donner un point d'entrée à l'œil et distinguer deux cartes voisines.
+ */
+const CATEGORIES: Record<ServiceCardData['category'], { icone: LucideIcon; teinte: string }> = {
+  SUPPLIER_SEARCH: { icone: Search, teinte: 'from-imperial/15 to-imperial/5 text-imperial' },
+  VERIFICATION: { icone: BadgeCheck, teinte: 'from-success/15 to-success/5 text-success' },
+  INSPECTION: { icone: ScanSearch, teinte: 'from-gold/20 to-gold/5 text-gold-ink' },
+  NEGOTIATION: { icone: Handshake, teinte: 'from-night/15 to-night/5 text-night' },
+  ASSISTED_PURCHASE: { icone: ShoppingCart, teinte: 'from-imperial/15 to-imperial/5 text-imperial' },
+  SUPPLIER_PAYMENT: { icone: CreditCard, teinte: 'from-success/15 to-success/5 text-success' },
+  CONSOLIDATION: { icone: Boxes, teinte: 'from-gold/20 to-gold/5 text-gold-ink' },
+  SHIPPING: { icone: Ship, teinte: 'from-night/15 to-night/5 text-night' },
+  BRANDING: { icone: Sparkles, teinte: 'from-gold/20 to-gold/5 text-gold-ink' },
+  COACHING: { icone: MessageCircle, teinte: 'from-imperial/15 to-imperial/5 text-imperial' },
+};
+
+/**
+ * Carte d'une prestation (SRV-01, §29).
+ *
+ * Le tarif passe en grand, parce que c'est l'information qu'on vient chercher. Le délai le
+ * suit sur la même ligne. Le résumé reste, borné à deux lignes : au-delà, c'est la fiche
+ * qui explique.
+ *
+ * Ce qui ne bouge pas (§54) : quand le prix n'existe pas, la carte écrit « Sur devis », et
+ * quand le délai n'est pas annoncé, elle le dit. Aucun des deux n'est remplacé par un
+ * chiffre plausible.
+ */
 function ServiceTuile({ service }: { service: ServiceCardData }) {
+  const { icone: Icone, teinte } = CATEGORIES[service.category] ?? {
+    icone: Package,
+    teinte: 'from-surface-muted to-surface-muted text-muted-foreground',
+  };
+
   return (
-    <Card className="flex h-full flex-col p-0">
+    <Card className="group flex h-full flex-col overflow-hidden p-0 transition-shadow duration-200 hover:shadow-lg">
+      <div className={`relative flex h-28 items-center justify-center bg-gradient-to-br ${teinte}`}>
+        <Icone className="size-10 transition-transform duration-500 ease-out group-hover:scale-110" aria-hidden />
+        <span className="absolute top-2 right-1">
+          <FavoriToggle targetType="SERVICE" targetId={service.id} libelle="cette prestation" />
+        </span>
+        {service.orderable && (
+          <span className="absolute bottom-2 left-2.5">
+            <Badge tone="success">Payable en ligne</Badge>
+          </span>
+        )}
+      </div>
+
       <Link
         href={`/services/${service.slug}`}
-        className="flex h-full flex-col gap-3 rounded-lg p-4 focus-visible:ring-2 focus-visible:ring-imperial focus-visible:outline-none"
+        className="flex flex-1 flex-col gap-1 p-4 focus-visible:ring-2 focus-visible:ring-imperial focus-visible:outline-none"
       >
-        <div className="flex items-start gap-2">
-          <div className="min-w-0 flex-1">
-            <p className="text-xs text-muted-foreground">{SERVICE_CATEGORY_LABELS[service.category].label}</p>
-            <h2 className="mt-0.5 font-semibold leading-tight">{service.name}</h2>
-          </div>
-          <FavoriToggle targetType="SERVICE" targetId={service.id} libelle="cette prestation" className="-mt-2 -mr-2" />
-        </div>
+        <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+          {SERVICE_CATEGORY_LABELS[service.category].label}
+        </p>
+        <h2 className="line-clamp-2 min-h-[2.75rem] leading-snug font-semibold">{service.name}</h2>
+        <p className="line-clamp-2 text-sm text-muted-foreground">{service.summary}</p>
 
-        <p className="flex-1 text-sm text-muted-foreground">{service.summary}</p>
-
-        <dl className="grid gap-1.5 text-sm">
-          <div className="flex items-baseline justify-between gap-3">
-            <dt className="text-muted-foreground">Tarif</dt>
-            <dd className="font-semibold">
-              {service.priceXaf === null ? (
-                <span className="text-sm font-medium text-muted-foreground">Sur devis</span>
-              ) : (
-                <>
-                  {service.pricingMode === 'FROM' && (
-                    <span className="mr-1 text-xs font-normal text-muted-foreground">à partir de</span>
-                  )}
-                  <Money value={{ amountMinor: service.priceXaf, currency: 'XAF' }} />
-                </>
-              )}
-            </dd>
-          </div>
-          <div className="flex items-baseline justify-between gap-3">
-            <dt className="text-muted-foreground">Délai</dt>
-            <dd
-              className={
-                service.leadTimeDays === null ? 'text-xs font-normal text-muted-foreground' : 'font-medium'
-              }
-            >
-              <Clock className="mr-1 inline size-3.5 align-[-2px]" aria-hidden />
-              {service.leadTimeLabel}
-            </dd>
-          </div>
-        </dl>
-
-        <div className="flex items-center justify-between gap-2">
-          {service.orderable ? (
-            <Badge tone="success">Payable en ligne</Badge>
-          ) : (
-            <Badge tone="neutral">Sur étude</Badge>
-          )}
-          <span className="inline-flex items-center gap-1 text-sm font-semibold text-primary">
-            Voir la prestation
-            <ArrowRight className="size-4" aria-hidden />
+        <div className="mt-auto flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 pt-3">
+          <span>
+            {service.priceXaf === null ? (
+              <span className="text-base font-semibold text-muted-foreground">Sur devis</span>
+            ) : (
+              <>
+                {service.pricingMode === 'FROM' && (
+                  <span className="mr-1 text-xs font-normal text-muted-foreground">dès</span>
+                )}
+                <Money
+                  className="font-display text-xl font-bold tracking-tight"
+                  value={{ amountMinor: service.priceXaf, currency: 'XAF' }}
+                />
+              </>
+            )}
+          </span>
+          <span className="figures inline-flex items-center gap-1 text-xs text-muted-foreground">
+            <Clock className="size-3.5" aria-hidden />
+            {service.leadTimeLabel}
           </span>
         </div>
       </Link>

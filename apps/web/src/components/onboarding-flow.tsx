@@ -11,9 +11,11 @@ import {
   type ImporterLevel,
   type InterestCategory,
 } from '@ws/contracts';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button, Card, Progress, TransitionEtape } from '@ws/ui';
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { apiFetch } from '@/lib/auth-client';
 
@@ -37,6 +39,8 @@ const BUDGET_LABELS: Record<BudgetRangeId, string> = {
  * s'adressent à personne.
  */
 export function OnboardingFlow() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const [step, setStep] = useState(0);
   // Avancer et revenir ne sont pas le même geste : le sens du glissement le dit.
   const [sens, setSens] = useState<'avant' | 'arriere'>('avant');
@@ -83,16 +87,28 @@ export function OnboardingFlow() {
     try {
       await apiFetch('/me/profile', { method: 'PUT', body: JSON.stringify(parsed.data) });
       setDone(true);
+
+      // Le tableau de bord lit le profil qu'on vient d'écrire. Sans cette purge, il
+      // réaffiche la réponse mise en cache avant l'onboarding — celle qui dit que le
+      // profil n'existe pas — et accueille la personne en lui redemandant de le remplir.
+      await queryClient.invalidateQueries();
+
+      // On l'emmène. Laisser un bouton « Découvrir ma plateforme » à cliquer, c'est une
+      // étape de plus à la fin d'un parcours qu'on vient de finir : le travail est fait,
+      // la place est dans l'espace personnel, pas sur un écran de félicitations.
+      router.replace('/tableau-de-bord');
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Enregistrement impossible. Réessayez.');
-    } finally {
       setPending(false);
     }
   }
 
+  // La redirection n'est pas instantanée : cet écran occupe l'intervalle. Le lien reste,
+  // pour le cas où la navigation échoue — une page de félicitations sans issue serait un
+  // cul-de-sac au pire moment, juste après avoir donné ses informations.
   if (done) {
     return (
-      <Card className="p-6 text-center">
+      <Card className="p-6 text-center" aria-busy="true">
         <span className="mx-auto mb-4 inline-flex size-12 items-center justify-center rounded-full bg-success-soft text-success">
           <Check aria-hidden />
         </span>
@@ -100,9 +116,10 @@ export function OnboardingFlow() {
         <p className="mt-2 text-sm text-muted-foreground">
           Vos opportunités et vos recommandations tiennent désormais compte de votre budget et de vos catégories.
         </p>
-        <Button asChild size="lg" block className="mt-6">
+        <p className="mt-4 text-sm text-muted-foreground">Ouverture de votre espace…</p>
+        <Button asChild variant="ghost" size="sm" className="mt-2">
           <Link href="/tableau-de-bord">
-            Découvrir ma plateforme
+            Y aller tout de suite
             <ArrowRight aria-hidden />
           </Link>
         </Button>

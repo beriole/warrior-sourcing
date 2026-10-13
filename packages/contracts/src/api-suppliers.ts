@@ -239,6 +239,16 @@ export const SupplierCardSchema = z.object({
   /** Visuel principal. `null` quand aucune image n'a été déposée : la carte affiche alors
    *  un emplacement explicite, jamais une image générique prise ailleurs. */
   logoUrl: z.string().nullable(),
+  /**
+   * Première photographie enregistrée du fournisseur — atelier, ligne de production,
+   * entrepôt — pour le bandeau de la carte.
+   *
+   * Une photo n'est **pas** une preuve de vérification, et la carte ne doit pas le laisser
+   * croire : c'est pourquoi le badge de niveau reste posé dessus, y compris quand il dit
+   * « Non vérifié ». La légende de la photo, qui porte la mise en garde complète, n'est
+   * lisible que sur la fiche.
+   */
+  coverUrl: z.string().nullable(),
   categories: z.array(InterestCategorySchema),
   /** Trois produits au plus, pour donner une idée sans surcharger la carte. */
   topOfferings: z.array(z.string()),

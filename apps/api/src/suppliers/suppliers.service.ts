@@ -124,7 +124,7 @@ export class SuppliersService {
     ]);
 
     const ids = suppliers.map((supplier) => supplier.id);
-    const [verifications, offerings, incidents] = await Promise.all([
+    const [verifications, offerings, incidents, photos] = await Promise.all([
       this.prisma.supplierVerification.findMany({
         where: { supplierId: { in: ids } },
         select: { id: true, supplierId: true, level: true, evidenceUrl: true, notes: true, verifiedAt: true },
@@ -138,6 +138,13 @@ export class SuppliersService {
         by: ['supplierId'],
         where: { supplierId: { in: ids }, status: 'OPEN' },
         _count: { _all: true },
+      }),
+      // Une photo par fournisseur suffit à la carte : la plus récente. Les autres sont
+      // sur la fiche, avec leur légende et leur date.
+      this.prisma.supplierPhoto.findMany({
+        where: { supplierId: { in: ids } },
+        select: { supplierId: true, url: true, takenAt: true },
+        orderBy: { takenAt: 'desc' },
       }),
     ]);
 
@@ -156,6 +163,7 @@ export class SuppliersService {
           leadTimeDays: supplier.leadTimeDays,
           publicSummary: supplier.publicSummary,
           logoUrl: supplier.logoUrl,
+          coverUrl: photos.find((photo) => photo.supplierId === supplier.id)?.url ?? null,
           categories: [...new Set(own.map((offering) => offering.category))],
           topOfferings: own.slice(0, 3).map((offering) => offering.name),
           verification: currentVerification(verifications.filter((row) => row.supplierId === supplier.id)),

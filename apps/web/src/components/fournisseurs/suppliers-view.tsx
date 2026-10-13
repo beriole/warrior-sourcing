@@ -270,85 +270,98 @@ export function SuppliersView() {
 }
 
 /** Carte compacte : ce qui permet de décider d'ouvrir la fiche, rien de plus (§44). */
+/**
+ * Carte d'un fournisseur (§16).
+ *
+ * ## Ce qui a changé
+ *
+ * Elle n'avait pas d'image, et empilait le résumé, la liste des produits, trois colonnes
+ * de caractéristiques et une rangée de pastilles. Beaucoup de texte pour une vignette, et
+ * rien qui se repère en balayant une grille.
+ *
+ * La photographie du fournisseur passe en bandeau, et **le badge de vérification est posé
+ * dessus**. Ce n'est pas un choix esthétique : une photo d'usine, seule, laisse croire
+ * qu'on est allé voir. Le badge est le seul endroit qui dit la vérité sur ce qui a été
+ * prouvé, et il doit se lire en même temps que l'image, pas trois lignes plus bas.
+ *
+ * Un incident ouvert garde sa pastille, visible sans dérouler : un risque ne se masque
+ * jamais, même chez un fournisseur vérifié (§17). Le reste — résumé, produits,
+ * échantillon, catégories — vit sur la fiche.
+ */
 function SupplierCard({ supplier }: { supplier: SupplierCardData }) {
-  const verifiedOn = formatDate(supplier.verification?.verifiedAt ?? null);
-
   return (
-    <Card className="flex h-full flex-col">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 flex-1 items-start gap-2">
-          <VisuelFournisseur nom={supplier.name} url={supplier.logoUrl} />
-          <div className="min-w-0 flex-1">
-            <h2 className="font-semibold leading-tight">{supplier.name}</h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {supplier.typeLabel} · {supplier.city}
-            </p>
-          </div>
-          <FavoriToggle targetType="SUPPLIER" targetId={supplier.id} libelle="ce fournisseur" className="-mt-2" />
-        </div>
-        {/* Sans preuve enregistrée, aucun badge : l'absence est dite en toutes lettres (§16). */}
-        {supplier.verification ? (
-          <VerificationBadge
-            level={supplier.verification.level}
-            verifiedAt={new Date(supplier.verification.verifiedAt)}
+    <Card className="group flex h-full flex-col overflow-hidden p-0 transition-shadow duration-200 hover:shadow-lg">
+      <div className="relative aspect-16/9 w-full overflow-hidden bg-surface-muted">
+        {supplier.coverUrl ?? supplier.logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- source locale, distante ou intégrée
+          <img
+            src={supplier.coverUrl ?? supplier.logoUrl ?? undefined}
+            alt=""
+            loading="lazy"
+            className="size-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
           />
         ) : (
-          <Badge tone="neutral" title="Aucune preuve n’a encore été enregistrée pour ce fournisseur.">
-            Non vérifié
-          </Badge>
+          <span className="flex size-full items-center justify-center font-display text-3xl font-bold text-muted-foreground/40">
+            {supplier.name.slice(0, 2).toUpperCase()}
+          </span>
         )}
-      </div>
 
-      {supplier.verification && verifiedOn && (
-        <p className="figures mt-1 text-xs text-muted-foreground">Vérifié le {verifiedOn}</p>
-      )}
+        <span className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-night/60 to-transparent" />
 
-      {supplier.publicSummary && <p className="mt-2 text-sm">{supplier.publicSummary}</p>}
+        {/* Sans preuve enregistrée, aucun badge de niveau : l'absence est dite en toutes lettres (§16). */}
+        <span className="absolute top-2.5 left-2.5">
+          {supplier.verification ? (
+            <VerificationBadge
+              level={supplier.verification.level}
+              verifiedAt={new Date(supplier.verification.verifiedAt)}
+            />
+          ) : (
+            <Badge tone="neutral" title="Aucune preuve n’a encore été enregistrée pour ce fournisseur.">
+              Non vérifié
+            </Badge>
+          )}
+        </span>
 
-      {supplier.topOfferings.length > 0 && (
-        <p className="mt-2 text-sm text-muted-foreground">Produits : {supplier.topOfferings.join(', ')}</p>
-      )}
+        <span className="absolute top-1 right-1">
+          <FavoriToggle targetType="SUPPLIER" targetId={supplier.id} libelle="ce fournisseur" />
+        </span>
 
-      <dl className="mt-3 grid grid-cols-3 gap-2 text-sm">
-        <div>
-          <dt className="text-xs text-muted-foreground">MOQ</dt>
-          <dd className="figures font-semibold">{supplier.moq ?? 'Non communiqué'}</dd>
-        </div>
-        <div>
-          <dt className="text-xs text-muted-foreground">Délai</dt>
-          <dd className="figures font-semibold">
-            {supplier.leadTimeDays ? `${supplier.leadTimeDays} j` : 'Non communiqué'}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-xs text-muted-foreground">Échantillon</dt>
-          <dd className="font-semibold">{supplier.sampleAvailable ? 'Oui' : 'Non'}</dd>
-        </div>
-      </dl>
-
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {supplier.customization && <Badge tone="brand">Personnalisation</Badge>}
-        {supplier.categories.map((category) => (
-          <Badge key={category} tone="neutral">
-            {INTEREST_CATEGORY_LABELS[category]}
-          </Badge>
-        ))}
         {supplier.openIncidents > 0 && (
-          <Badge tone="warning" title="Un incident ouvert est toujours affiché, même chez un fournisseur vérifié.">
-            <AlertTriangle aria-hidden />
-            {supplier.openIncidents} incident{supplier.openIncidents > 1 ? 's' : ''} en cours
-          </Badge>
+          <span className="absolute right-2.5 bottom-2.5">
+            <Badge
+              tone="warning"
+              title="Un incident ouvert est toujours affiché, même chez un fournisseur vérifié."
+            >
+              <AlertTriangle aria-hidden />
+              {supplier.openIncidents} incident{supplier.openIncidents > 1 ? 's' : ''}
+            </Badge>
+          </span>
         )}
       </div>
 
-      <div className="mt-auto pt-4">
-        <Button asChild size="sm" variant="outline" block>
-          <Link href={`/fournisseurs/${supplier.id}`}>
-            Voir la fiche
-            <ArrowRight aria-hidden />
-          </Link>
-        </Button>
-      </div>
+      <Link
+        href={`/fournisseurs/${supplier.id}`}
+        className="flex flex-1 flex-col gap-1 p-4 focus-visible:ring-2 focus-visible:ring-imperial focus-visible:outline-none"
+      >
+        <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+          {supplier.typeLabel} · {supplier.city}
+        </p>
+        <h2 className="line-clamp-2 min-h-[2.75rem] leading-snug font-semibold">{supplier.name}</h2>
+
+        <dl className="figures mt-auto flex flex-wrap gap-x-4 gap-y-1 pt-3 text-xs text-muted-foreground">
+          <div className="flex gap-1.5">
+            <dt>MOQ</dt>
+            <dd className="font-semibold text-foreground">{supplier.moq ?? 'nc'}</dd>
+          </div>
+          <div className="flex gap-1.5">
+            <dt>Délai</dt>
+            <dd className="font-semibold text-foreground">
+              {supplier.leadTimeDays ? `${supplier.leadTimeDays} j` : 'nc'}
+            </dd>
+          </div>
+          {supplier.customization && <div className="font-semibold text-imperial">Personnalisation</div>}
+        </dl>
+      </Link>
     </Card>
   );
 }
