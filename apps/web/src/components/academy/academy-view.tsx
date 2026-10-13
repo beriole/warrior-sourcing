@@ -139,7 +139,7 @@ export function AcademyView() {
           <div aria-busy={isPlaceholderData || undefined} className={isPlaceholderData ? 'opacity-60' : ''}>
             <GrilleAnimee
               signature={`${page}|${JSON.stringify(filters)}`}
-              className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+              className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
             >
               {data.items.map((course) => (
                 <AcademyCourseCard key={course.id} course={course} />
@@ -350,7 +350,7 @@ const inputClass =
 
 function ListSkeleton() {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
       {Array.from({ length: 6 }, (_, index) => (
         <div key={index} className="grid gap-3 rounded-lg border border-border bg-surface p-4 shadow-card">
           <Skeleton className="aspect-16/9 w-full rounded-md" />

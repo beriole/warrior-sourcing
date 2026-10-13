@@ -373,23 +373,40 @@ async function main() {
     },
   });
 
+  /*
+   * Photographies d'illustration, servies par le site depuis `public/images/fournisseurs/`.
+   *
+   * Elles pointaient vers `exemple.invalid`, un domaine réservé qui ne résout pas : la
+   * fiche affichait donc une image cassée, ce qui ressemble à une panne plutôt qu'à une
+   * donnée d'essai. La légende dit maintenant ce que la photo est — une illustration, pas
+   * un relevé d'agent sur place —, parce que c'est la différence qui compte : une photo
+   * de visite d'usine est un élément de vérification, et celle-ci n'en est pas une.
+   */
   await prisma.supplierPhoto.createMany({
     data: [
       {
         supplierId: accessoires.id,
         kind: 'PRODUCTION_LINE',
-        url: 'https://exemple.invalid/demo/photo-ligne-production.jpg',
-        caption: 'Photo de démonstration.',
+        url: '/images/fournisseurs/atelier-accessoires.jpg',
+        caption: 'Illustration — aucune visite n’a été faite chez ce fournisseur de démonstration.',
         takenAt: new Date('2026-08-12T00:00:00.000Z'),
-        takenBy: 'Agent Chine (démonstration)',
+        takenBy: 'Illustration (démonstration)',
+      },
+      {
+        supplierId: textile.id,
+        kind: 'FACTORY',
+        url: '/images/fournisseurs/negoce-textile.jpg',
+        caption: 'Illustration — aucune visite n’a été faite chez ce fournisseur de démonstration.',
+        takenAt: new Date('2026-07-02T00:00:00.000Z'),
+        takenBy: 'Illustration (démonstration)',
       },
       {
         supplierId: electromenager.id,
         kind: 'FACTORY',
-        url: 'https://exemple.invalid/demo/photo-usine.jpg',
-        caption: 'Photo de démonstration.',
+        url: '/images/fournisseurs/usine-electromenager.jpg',
+        caption: 'Illustration — aucune visite n’a été faite chez ce fournisseur de démonstration.',
         takenAt: new Date('2026-06-15T00:00:00.000Z'),
-        takenBy: 'Agent Chine (démonstration)',
+        takenBy: 'Illustration (démonstration)',
       },
     ],
   });

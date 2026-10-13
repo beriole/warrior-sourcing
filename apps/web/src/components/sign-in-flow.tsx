@@ -2,7 +2,7 @@
 
 import { Button, Card, TransitionEtape } from '@ws/ui';
 import { ArrowLeft, ArrowRight, Mail } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { apiFetch, authClient } from '@/lib/auth-client';
 
@@ -19,8 +19,23 @@ function isValidEmail(value: string): boolean {
  * Connexion en deux temps : adresse email puis code reçu par email (§10).
  * Aucun mot de passe à retenir, et l'adresse sert ensuite aux confirmations de commande.
  */
+/**
+ * Destination après connexion.
+ *
+ * `suite` est posé par la garde de session : il ramène la personne là où elle allait
+ * quand on lui a demandé de se connecter. Seul un chemin interne est accepté — une valeur
+ * commençant par `//` ou par un protocole serait une redirection ouverte, c'est-à-dire un
+ * lien de notre domaine qui dépose le visiteur sur un site tiers.
+ */
+function destination(suite: string | null, onboardingFait: boolean): string {
+  if (!onboardingFait) return '/onboarding';
+  if (suite && suite.startsWith('/') && !suite.startsWith('//')) return suite;
+  return '/tableau-de-bord';
+}
+
 export function SignInFlow() {
   const router = useRouter();
+  const suite = useSearchParams().get('suite');
   const [step, setStep] = useState<Step>('email');
   // Le sens du passage : il dit à l'utilisateur s'il avance ou s'il revient.
   const [sens, setSens] = useState<'avant' | 'arriere'>('avant');
@@ -77,7 +92,7 @@ export function SignInFlow() {
 
     // L'onboarding n'est demandé qu'une fois : on lit l'état côté serveur.
     const me = await apiFetch<{ onboardingCompleted: boolean }>('/me').catch(() => null);
-    router.push(me?.onboardingCompleted ? '/tableau-de-bord' : '/onboarding');
+    router.push(destination(suite, me?.onboardingCompleted ?? false));
   }
 
   return (

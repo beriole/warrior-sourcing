@@ -29,3 +29,33 @@ Déposez vos fichiers **sous les mêmes noms**, puis complétez ce tableau. Rien
 - largeur : 1600 px suffit, au-delà c'est du poids pour rien sur un réseau mobile ;
 - orientation : paysage pour `conteneurs-empiles` et `entrepot-cartons`, portrait pour
   `port-conteneurs`.
+
+## Visuels des cartes — formations, produits, fournisseurs
+
+Photographies sous **licence Pexels** : usage commercial autorisé, modification autorisée,
+aucune attribution exigée. Téléchargées par `scripts/telecharger-visuels.mjs`, qui porte la
+correspondance fichier → photo. Relancer le script remplace les fichiers à l'identique.
+
+| Dossier | Ce qu'il illustre |
+|---|---|
+| `formations/` | le sujet de chaque formation : port, entrepôt, paiement, calcul, négociation, douane |
+| `produits/` | les dix produits du catalogue de démonstration |
+| `fournisseurs/` | les trois fournisseurs de démonstration |
+
+**Trois photos ont été écartées après les avoir regardées.** Les premières trouvées pour les
+écouteurs, la montre connectée et les coques montraient des AirPods, une Apple Watch et des
+coques à logo Apple. Mettre du matériel Apple en face d'un prix d'achat annoncé à 38 CNY
+laisse croire qu'on peut en acheter à ce prix : c'est faux, et c'est une marque déposée.
+Les remplaçantes ne portent aucun logo.
+
+Une quatrième a été refaite pour une raison bêtement visuelle : le premier cadrage de
+`formations/payer.jpg` donnait un mur gris et un téléphone minuscule. Une photo ne se
+choisit pas sur sa description.
+
+### La copie dans le back-office
+
+Les mêmes fichiers existent dans `apps/admin/public/images/`. Les visuels sont désignés en
+base par un chemin relatif à la racine du site (`/images/formations/…`), et un chemin
+relatif se résout contre l'application qui l'affiche. Le back-office montre les mêmes
+fiches : sans la copie, il afficherait des images cassées. `telecharger-visuels.mjs` fait
+la copie lui-même — ne modifiez qu'un seul des deux dossiers à la main et ils divergeront.

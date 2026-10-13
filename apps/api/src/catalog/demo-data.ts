@@ -332,23 +332,31 @@ export const DEMO_PRODUCTS: DemoProduct[] = [
 ];
 
 /** Image de remplacement : un visuel neutre qui se présente comme une démonstration. */
-function placeholderImage(label: string, hue: number, variant: number): string {
-  const svg = [
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">',
-    `<rect width="600" height="600" fill="hsl(${hue} 40% ${92 - variant * 6}%)"/>`,
-    `<circle cx="300" cy="250" r="120" fill="hsl(${hue} 50% ${78 - variant * 6}%)"/>`,
-    `<text x="300" y="450" text-anchor="middle" font-family="sans-serif" font-size="32" fill="hsl(${hue} 35% 28%)">${label}</text>`,
-    `<text x="300" y="500" text-anchor="middle" font-family="sans-serif" font-size="22" fill="hsl(${hue} 20% 42%)">Image de démonstration</text>`,
-    '</svg>',
-  ].join('');
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-}
+/**
+ * Photographies des produits, servies par le site depuis `public/images/produits/`.
+ *
+ * Elles remplacent un disque de couleur. Trois ont été changées après les avoir regardées :
+ * les premières montraient des AirPods, une Apple Watch et des coques à logo Apple. Mettre
+ * du matériel Apple en face d'un prix d'achat de 38 CNY laisse croire qu'on peut en acheter
+ * à ce prix, ce qui est faux — et c'est une marque déposée. Celles retenues ne portent
+ * aucun logo.
+ *
+ * Le chemin est relatif à la racine du site, donc valable aussi dans le back-office.
+ */
+const PHOTOS: Record<string, string> = {
+  'ecouteurs-sans-fil-tws': '/images/produits/ecouteurs-tws.jpg',
+  'coque-telephone-silicone': '/images/produits/coque-telephone.jpg',
+  'montre-connectee-sport': '/images/produits/montre-connectee.jpg',
+  'batterie-externe-10000': '/images/produits/batterie-externe.jpg',
+  'sac-a-main-synthetique': '/images/produits/sac-a-main.jpg',
+  'perruque-cheveux-synthetiques': '/images/produits/perruque.jpg',
+  'kit-led-auto': '/images/produits/kit-led-auto.jpg',
+  'machine-scellage-sachets': '/images/produits/machine-scellage.jpg',
+  'sachets-emballage-imprimes': '/images/produits/sachets-imprimes.jpg',
+  'mixeur-cuisine-multifonction': '/images/produits/mixeur.jpg',
+};
 
 /** Échappe les caractères interdits dans un texte SVG. */
-function escapeXml(value: string): string {
-  return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
-}
-
 /**
  * Insère (ou remet à jour) le catalogue de démonstration.
  * Idempotent : relancer le script ne crée pas de doublon.
@@ -383,14 +391,21 @@ export async function seedCatalogDemoData(prisma: PrismaClient): Promise<number>
     });
 
     await prisma.productImage.deleteMany({ where: { productId: product.id } });
-    await prisma.productImage.createMany({
-      data: [0, 1, 2].map((variant) => ({
-        productId: product.id,
-        url: placeholderImage(escapeXml(demo.name), demo.hue, variant),
-        alt: `${demo.name} — image de démonstration ${variant + 1} sur 3`,
-        position: variant,
-      })),
-    });
+
+    // Une seule photo, et non trois variantes de la même couleur : un carrousel de trois
+    // images identiques annonce un choix qui n'existe pas. Sans photo, aucune ligne n'est
+    // écrite, et la fiche affiche son état « pas d'image » — ce qui est exact.
+    const photo = PHOTOS[demo.slug];
+    if (photo) {
+      await prisma.productImage.create({
+        data: {
+          productId: product.id,
+          url: photo,
+          alt: `Photographie d’illustration : ${demo.name.replace(DEMO_PREFIX, '')}`,
+          position: 0,
+        },
+      });
+    }
 
     if (demo.market) {
       const market = {

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { SignInFlow } from '@/components/sign-in-flow';
 
 export const metadata: Metadata = {
@@ -18,7 +19,11 @@ export default function SignInPage() {
         <Link href="/" className="mb-8 font-display text-lg font-bold tracking-tight">
           Warrior <span className="text-gold">Sourcing</span>
         </Link>
-        <SignInFlow />
+        {/* `SignInFlow` lit `suite` dans l'adresse : Next exige une frontière de
+            suspension autour de tout composant qui lit les paramètres de requête. */}
+        <Suspense fallback={<div className="h-80" />}>
+          <SignInFlow />
+        </Suspense>
       </div>
     </main>
   );

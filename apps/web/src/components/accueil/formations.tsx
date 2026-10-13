@@ -37,7 +37,7 @@ export async function FormationsAccueil({ catalogue }: { catalogue: AcademyCours
 
   return (
     <section id="formations" className="border-b border-border bg-surface-muted">
-      <div className="mx-auto max-w-6xl px-4 py-14 md:px-6">
+      <div className="mx-auto max-w-6xl px-4 py-16 md:px-6 md:py-20">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <TitreSection surtitre={t('eyebrow')}>{t('title')}</TitreSection>
           <Button asChild variant="outline" className="ws-onview" suppressHydrationWarning>
@@ -53,7 +53,7 @@ export async function FormationsAccueil({ catalogue }: { catalogue: AcademyCours
           {parties.length > 0 ? ` — ${parties.join(', ')}.` : '.'} {t('note')}
         </p>
 
-        <Serie className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <Serie className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {cours.map((item, index) => (
             <ElementDeSerie key={item.id} index={index} total={cours.length} className="h-full">
               <div className="ws-eleve h-full">

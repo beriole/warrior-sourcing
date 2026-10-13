@@ -652,26 +652,30 @@ const RESOURCES: DemoResource[] = [
   },
 ];
 
-/** Visuel de démonstration, intégré au document : aucun fichier à héberger. */
-function placeholderCover(label: string, hue: number): string {
-  const svg = [
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450">',
-    `<rect width="800" height="450" fill="hsl(${hue} 38% 92%)"/>`,
-    `<rect x="48" y="48" width="704" height="354" rx="18" fill="hsl(${hue} 44% 84%)"/>`,
-    `<text x="400" y="230" text-anchor="middle" font-family="sans-serif" font-size="34" fill="hsl(${hue} 32% 26%)">${label}</text>`,
-    `<text x="400" y="278" text-anchor="middle" font-family="sans-serif" font-size="20" fill="hsl(${hue} 18% 40%)">Visuel de démonstration</text>`,
-    '</svg>',
-  ].join('');
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-}
+/**
+ * Photographies des couvertures, servies par le site depuis `public/images/formations/`.
+ *
+ * Elles ont remplacé un rectangle coloré portant le titre. Le rectangle avait un mérite —
+ * il ne prétendait rien — mais sur une page qui vend des formations, il dit surtout que le
+ * produit n'est pas fini. Chaque photo illustre le **sujet** du cours, sans affirmer un
+ * lieu ni montrer un visage reconnaissable : voir `apps/web/public/images/CREDITS.md`.
+ *
+ * Le chemin est relatif à la racine du site : il vaut donc aussi dans le back-office, qui
+ * sert les mêmes fichiers. Une formation sans entrée ici garde `coverUrl: null`, et la
+ * carte affiche son état « aucun visuel » plutôt qu'une image cassée.
+ */
+const COUVERTURES: Record<string, string> = {
+  'demo-aca-bases-import': '/images/formations/bases-import.jpg',
+  'demo-aca-sourcing-1688': '/images/formations/sourcing.jpg',
+  'demo-aca-payer-sans-se-faire-avoir': '/images/formations/payer.jpg',
+  'demo-aca-cout-rendu-et-tresorerie': '/images/formations/cout-rendu.jpg',
+  'demo-aca-negocier-fournisseur': '/images/formations/negocier.jpg',
+  'demo-aca-douane-cameroun': '/images/formations/douane.jpg',
+};
 
 /** Fichier texte de démonstration, réellement lisible : le format annoncé est `txt`. */
 function textFile(body: string): string {
   return `data:text/plain;charset=utf-8,${encodeURIComponent(body)}`;
-}
-
-function escapeXml(value: string): string {
-  return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 }
 
 /**
@@ -699,7 +703,7 @@ export async function seedAcademyDemoData(prisma: PrismaClient): Promise<{ cours
       priceXaf: demo.priceXaf,
       outcomes: demo.outcomes,
       prerequisites: demo.prerequisites,
-      coverUrl: placeholderCover(escapeXml(demo.title.replace(DEMO_PREFIX, '')), demo.hue),
+      coverUrl: COUVERTURES[demo.slug] ?? null,
       // Aucun extrait vidéo n'a été déposé : la fiche n'annonce donc pas de bande-annonce.
       trailerUrl: null,
       instructorId: INSTRUCTORS[demo.instructor].id,
