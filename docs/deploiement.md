@@ -292,6 +292,26 @@ update "user" set role = 'SUPER_ADMIN' where email = 'votre@adresse';
 Puis, depuis le back-office, saisissez vos transitaires et leurs grilles tarifaires : sans
 eux, le calculateur n'a aucun tarif et l'assistant d'adresse n'a aucune adresse à proposer.
 
+## Les données de démonstration : gardées, mais présentables
+
+Le catalogue en production est encore celui de démonstration — formations, produits et
+fournisseurs portent tous le préfixe « DÉMO — ». Le choix assumé est de les garder le temps
+que le vrai contenu soit saisi, et de leur donner de vraies photographies plutôt que des
+rectangles de couleur (`scripts/telecharger-visuels.mjs`, puis
+`scripts/poser-visuels-en-base.mjs` pour les lignes déjà en base).
+
+**Deux exceptions, retirées parce qu'elles étaient dangereuses et non simplement fausses :**
+
+- Les **transitaires de démonstration** sont désactivés. L'un portait une adresse d'entrepôt
+  en Chine qui n'existe pas : quelqu'un pouvait y expédier de la marchandise. Six
+  entreprises réelles les remplacent (`scripts/transitaires-reels.mjs`).
+- Les **photos de fournisseur** pointaient vers `exemple.invalid`. Leur légende dit
+  désormais qu'il s'agit d'une illustration et qu'aucune visite n'a eu lieu — la différence
+  compte, parce qu'une photo de visite d'usine est un élément de vérification.
+
+Le préfixe « DÉMO — » reste sur chaque titre, et c'est volontaire : tant qu'il est là,
+personne ne peut prendre ce catalogue pour le vrai.
+
 ## Vider la base de ses données de démonstration
 
 Les seeds écrivent des lignes fictives, toutes préfixées « DÉMO — ». En production elles
